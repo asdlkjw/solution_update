@@ -186,7 +186,7 @@ def fix_content_with_llm(problem_data: Dict[str, Any]) -> Dict[str, Any]:
 
     payload = {
         "model": MODEL_NAME,
-        "temperature": 0.7,
+        "temperature": 0.4,
         "max_tokens": 4000,
         "top_p": 0.95,
         "messages": [
@@ -255,12 +255,32 @@ def normalize_html_wrappers(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
     return fixed_data
 
 
+def unescape_html_tags(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
+    tags = ["div", "p", "ol", "ul", "li"]
+
+    for key, value in fixed_data.items():
+        if isinstance(value, str):
+            for tag in tags:
+                pattern = f"<\\\\+/{tag}>"
+                replacement = f"</{tag}>"
+                value = re.sub(pattern, replacement, value)
+
+                pattern_open = f"<\\\\+{tag}"
+                replacement_open = f"<{tag}"
+                value = re.sub(pattern_open, replacement_open, value)
+
+            fixed_data[key] = value
+
+    return fixed_data
+
+
 def process_single_problem(problem: Dict[str, Any]) -> Dict[str, Any]:
     # 단일 문제 처리를 위한 래퍼 함수 (병렬 실행용)
     fixed_data = fix_content_with_llm(problem)
 
     # 후처리 로직 적용
     fixed_data = normalize_answer(fixed_data)
+    fixed_data = unescape_html_tags(fixed_data)
     fixed_data = normalize_html_wrappers(fixed_data)
 
     return {
