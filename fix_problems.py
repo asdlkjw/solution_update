@@ -185,7 +185,7 @@ def fix_content_with_llm(problem_data: Dict[str, Any]) -> Dict[str, Any]:
 
     payload = {
         "model": MODEL_NAME,
-        "temperature": 0.1,
+        "temperature": 0.7,
         "max_tokens": 4000,
         "top_p": 0.95,
         "messages": [
@@ -223,9 +223,27 @@ def fix_content_with_llm(problem_data: Dict[str, Any]) -> Dict[str, Any]:
         return {"error": str(e), "original_id": problem_data.get("id")}
 
 
+def normalize_answer(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    후처리 로직:
+    - type이 multiple_choice인 경우 answer의 원문자(①~⑤)를 숫자로 변환
+    """
+    if fixed_data.get("type") == "multiple_choice":
+        ans = str(fixed_data.get("answer", ""))
+        replacements = {"①": "1", "②": "2", "③": "3", "④": "4", "⑤": "5"}
+        for circle, num in replacements.items():
+            ans = ans.replace(circle, num)
+        fixed_data["answer"] = ans.strip()
+    return fixed_data
+
+
 def process_single_problem(problem: Dict[str, Any]) -> Dict[str, Any]:
     # 단일 문제 처리를 위한 래퍼 함수 (병렬 실행용)
     fixed_data = fix_content_with_llm(problem)
+
+    # 후처리 로직 적용
+    fixed_data = normalize_answer(fixed_data)
+
     return {
         "original_id": problem.get("id"),
         "original": json.loads(json.dumps(problem, default=str)),
