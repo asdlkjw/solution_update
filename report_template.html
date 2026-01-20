@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sisyphus Reviewer // Paginated</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Syncopate:wght@700&display=swap" rel="stylesheet">
+    <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: false
+      }
+    };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #121218;
+            --text-primary: #e0e0e0;
+            --text-secondary: #888899;
+            --accent-color: #00d4ff;
+            --diff-color: #ff9d00;
+            --border-color: #2a2a35;
+            --grid-color: rgba(42, 42, 53, 0.3);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'IBM Plex Mono', monospace;
+            background-image: 
+                linear-gradient(var(--grid-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+            background-size: 20px 20px;
+            overflow: hidden;
+        }
+
+        header {
+            padding: 15px 20px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        h1 {
+            font-family: 'Syncopate', sans-serif;
+            font-size: 1.1rem;
+            margin: 0;
+            color: var(--accent-color);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .btn {
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid var(--accent-color);
+            color: var(--accent-color);
+            padding: 8px 16px;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .btn:hover {
+            background: var(--accent-color);
+            color: #000;
+        }
+
+        .btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            border-color: var(--text-secondary);
+            color: var(--text-secondary);
+            background: transparent;
+        }
+
+        .page-indicator {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            min-width: 150px;
+            text-align: center;
+        }
+
+        /* Main Content */
+        #app {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        .panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 10px 15px;
+            background: rgba(0,0,0,0.2);
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .panel-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        /* JSON Styling */
+        .key { color: var(--text-secondary); }
+        .string { color: #a5d6ff; }
+        .number { color: #ff7b72; }
+        .boolean { color: #79c0ff; }
+        .null { color: #79c0ff; }
+
+        .diff {
+            outline: 1px dashed var(--diff-color);
+            background: rgba(255, 157, 0, 0.1);
+            position: relative;
+        }
+        
+        .diff::after {
+            content: "MODIFIED";
+            position: absolute;
+            right: 0;
+            top: 0;
+            font-size: 0.6rem;
+            background: var(--diff-color);
+            color: #000;
+            padding: 0 4px;
+            pointer-events: none;
+        }
+
+        /* Image Handling */
+        .preview-img {
+            max-width: 30px;
+            max-height: 30px;
+            vertical-align: middle;
+            border: 1px solid var(--border-color);
+            cursor: zoom-in;
+            margin: 0 4px;
+            transition: transform 0.2s;
+        }
+
+        /* Field Styling for MathJax Rendering */
+        .field-wrapper {
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .field-wrapper:last-child {
+            border-bottom: none;
+        }
+
+        .field-label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        .field-content {
+            font-size: 0.95rem;
+            line-height: 1.8;
+            padding-left: 10px;
+        }
+
+        .field-type {
+            background: rgba(0, 212, 255, 0.1);
+            padding: 6px 10px;
+            border-radius: 3px;
+        }
+
+        .field-question {
+            padding: 8px 0;
+        }
+
+        .field-refer {
+            padding: 8px 0;
+        }
+
+        /* Remove default numbering for lists in reference field */
+        .field-refer ol, .reference ol {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        
+        .field-refer li, .reference li {
+            margin: 4px 0;
+            padding-left: 5px;
+        }
+
+        .field-choice {
+            padding: 6px 0;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 3px;
+            margin: 4px 0;
+            padding: 6px 10px;
+        }
+
+        .field-answer {
+            font-weight: bold;
+            color: var(--accent-color);
+            padding: 8px 0;
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .field-solution {
+            padding: 10px 0;
+            background: rgba(0, 0, 0, 0.15);
+            border-radius: 3px;
+            padding: 10px;
+        }
+
+        /* MathJax Container Styling */
+        .field-content mjx-container {
+            font-size: 110% !important;
+        }
+
+        .preview-img:hover {
+            transform: scale(8);
+            z-index: 1000;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            border: 1px solid var(--accent-color);
+            background: #000;
+        }
+        
+        .id-badge {
+            background: var(--accent-color);
+            color: #000;
+            padding: 2px 6px;
+            border-radius: 2px;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-primary); }
+        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Sisyphus Reviewer</h1>
+        <div class="controls">
+            <button id="btn-prev" class="btn" onclick="prevPage()">← Prev</button>
+            <span id="page-indicator" class="page-indicator">Loading...</span>
+            <button id="btn-next" class="btn" onclick="nextPage()">Next →</button>
+        </div>
+    </header>
+    
+    <div id="app">
+        <!-- Panels injected by JS -->
+    </div>
+
+    <script>
+        // DATA INJECTION POINT
+        const DATA = __JSON_DATA_PLACEHOLDER__;
+        
+        let currentIndex = 0;
+
+        function isImageUrl(str) {
+            return (typeof str === 'string' && (str.match(/\.(jpeg|jpg|gif|png|webp)$/i) != null || str.includes('<img')));
+        }
+        
+        function extractImgSrc(str) {
+             const match = str.match(/src=["'](.*?)["']/);
+             return match ? match[1] : str;
+        }
+
+        function renderValue(key, val, otherVal) {
+            const isDiff = JSON.stringify(val) !== JSON.stringify(otherVal);
+            const diffClass = isDiff ? 'diff' : '';
+            
+            if (val === null) return `<span class="null ${diffClass}">null</span>`;
+            if (typeof val === 'boolean') return `<span class="boolean ${diffClass}">${val}</span>`;
+            if (typeof val === 'number') return `<span class="number ${diffClass}">${val}</span>`;
+            
+            if (typeof val === 'string') {
+                if (isImageUrl(val)) {
+                    let src = val;
+                    if (val.includes('<img')) src = extractImgSrc(val);
+                    return `<span class="string ${diffClass}">
+                        "${val.substring(0, 50)}..." <img src="${src}" class="preview-img" title="Click to open">
+                    </span>`;
+                }
+                // Escape HTML
+                const safeStr = val.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+                return `<span class="string ${diffClass}">"${safeStr}"</span>`;
+            }
+            
+            if (Array.isArray(val)) {
+                if (val.length === 0) return '[]';
+                let html = '[<div style="padding-left: 20px;">';
+                val.forEach((item, i) => {
+                    html += renderValue(i, item, otherVal ? otherVal[i] : undefined) + (i < val.length - 1 ? ',' : '') + '<br>';
+                });
+                html += ']</div>';
+                return html;
+            }
+            
+            if (typeof val === 'object') {
+                if (Object.keys(val).length === 0) return '{}';
+                let html = '{<div style="padding-left: 20px;">';
+                Object.keys(val).forEach((k, i, keys) => {
+                    const v = val[k];
+                    const ov = otherVal ? otherVal[k] : undefined;
+                    html += `<span class="key">"${k}"</span>: ${renderValue(k, v, ov)}${i < keys.length - 1 ? ',' : ''}<br>`;
+                });
+                html += '}</div>';
+                return html;
+            }
+            
+            return val;
+        }
+
+        function renderField(data, field, label, customClass) {
+            const value = data[field];
+            if (value === null || value === undefined) return '';
+            return `
+                <div class="field-wrapper ${customClass || ''}">
+                    <div class="field-label">${label}</div>
+                    <div class="field-content">${value}</div>
+                </div>
+            `;
+        }
+
+        function renderPanel(data, title, badge) {
+            const fields = [
+                { field: 'type', label: 'TYPE', class: 'field-type' },
+                { field: 'question', label: 'QUESTION', class: 'field-question' },
+                { field: 'refer', label: 'REFER', class: 'field-refer' },
+                { field: 'choice1', label: 'CHOICE 1', class: 'field-choice' },
+                { field: 'choice2', label: 'CHOICE 2', class: 'field-choice' },
+                { field: 'choice3', label: 'CHOICE 3', class: 'field-choice' },
+                { field: 'choice4', label: 'CHOICE 4', class: 'field-choice' },
+                { field: 'choice5', label: 'CHOICE 5', class: 'field-choice' },
+                { field: 'answer', label: 'ANSWER', class: 'field-answer' },
+                { field: 'solution', label: 'SOLUTION', class: 'field-solution' }
+            ];
+
+            let html = fields.map(f => renderField(data, f.field, f.label, f.class)).join('');
+
+            return `
+                <div class="panel">
+                    <div class="panel-header">
+                        <span>${title}</span>
+                        <span class="id-badge">${badge}</span>
+                    </div>
+                    <div class="panel-content">
+                        ${html}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderPage() {
+            if (!DATA || DATA.length === 0) {
+                document.getElementById('app').innerHTML = '<div style="margin:auto">No Data Loaded</div>';
+                return;
+            }
+
+            const item = DATA[currentIndex];
+            const app = document.getElementById('app');
+
+            // Update controls
+            document.getElementById('page-indicator').innerText = `Problem ${currentIndex + 1} of ${DATA.length} (ID: ${item.original_id})`;
+            document.getElementById('btn-prev').disabled = currentIndex === 0;
+            document.getElementById('btn-next').disabled = currentIndex === DATA.length - 1;
+
+            // Render Panels with HTML content
+            app.innerHTML = `
+                ${renderPanel(item.original, 'ORIGINAL DATA', `ID: ${item.original_id}`)}
+                ${renderPanel(item.fixed, 'FIXED DATA (LLM)', 'GEMINI 3.0')}
+            `;
+
+            // Trigger MathJax rendering
+            if (window.MathJax && window.MathJax.typesetPromise) {
+                window.MathJax.typesetPromise([document.getElementById('app')]).catch(err => console.error('MathJax error:', err));
+            }
+        }
+
+        function prevPage() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                renderPage();
+            }
+        }
+
+        function nextPage() {
+            if (currentIndex < DATA.length - 1) {
+                currentIndex++;
+                renderPage();
+            }
+        }
+
+        // Keyboard Navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') prevPage();
+            if (e.key === 'ArrowRight') nextPage();
+        });
+
+        // Initialize
+        renderPage();
+    </script>
+</body>
+</html>

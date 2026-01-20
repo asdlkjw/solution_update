@@ -1,0 +1,19 @@
+[project]
+name = "math-problem-fixer"
+version = "0.1.0"
+description = "AI-powered math problem correction tool using OpenRouter Gemini"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "pymysql>=1.1.0",
+    "requests>=2.31.0",
+    "python-dotenv>=1.0.0",
+    "cryptography>=42.0.0"
+]
+
+[tool.uv]
+dev-dependencies = [
+    "black>=24.0.0",
+    "flake8>=7.0.0",
+    "mypy>=1.8.0"
+]
