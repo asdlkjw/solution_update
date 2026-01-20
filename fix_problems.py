@@ -4,6 +4,7 @@ import sys
 import json
 import argparse
 import csv
+import re
 import pymysql
 import pymysql.cursors
 import requests
@@ -237,12 +238,30 @@ def normalize_answer(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
     return fixed_data
 
 
+def normalize_html_wrappers(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
+    fields = ["choice1", "choice2", "choice3", "choice4", "choice5", "answer"]
+
+    for field in fields:
+        content = fixed_data.get(field)
+        if not content or not isinstance(content, str):
+            continue
+
+        pattern = r'^\s*<div\s+class=["\'](?:choice|answer)["\']\s*>(.*)</div>\s*$'
+
+        match = re.match(pattern, content, re.DOTALL | re.IGNORECASE)
+        if match:
+            fixed_data[field] = match.group(1).strip()
+
+    return fixed_data
+
+
 def process_single_problem(problem: Dict[str, Any]) -> Dict[str, Any]:
     # 단일 문제 처리를 위한 래퍼 함수 (병렬 실행용)
     fixed_data = fix_content_with_llm(problem)
 
     # 후처리 로직 적용
     fixed_data = normalize_answer(fixed_data)
+    fixed_data = normalize_html_wrappers(fixed_data)
 
     return {
         "original_id": problem.get("id"),
