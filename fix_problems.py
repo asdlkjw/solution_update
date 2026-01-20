@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from pathlib import Path
 from typing import List, Dict, Any, Literal
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from tqdm import tqdm
 
 env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(dotenv_path=env_path)
@@ -224,7 +225,6 @@ def fix_content_with_llm(problem_data: Dict[str, Any]) -> Dict[str, Any]:
 
 def process_single_problem(problem: Dict[str, Any]) -> Dict[str, Any]:
     # 단일 문제 처리를 위한 래퍼 함수 (병렬 실행용)
-    print(f"Processing ID: {problem.get('id')}...")
     fixed_data = fix_content_with_llm(problem)
     return {
         "original_id": problem.get("id"),
@@ -320,7 +320,9 @@ def main():
             executor.submit(process_single_problem, p): p["id"] for p in problems
         }
 
-        for future in as_completed(future_to_id):
+        for future in tqdm(
+            as_completed(future_to_id), total=len(problems), desc="Processing"
+        ):
             p_id = future_to_id[future]
             try:
                 data = future.result()
