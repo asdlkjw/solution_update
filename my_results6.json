@@ -1,0 +1,452 @@
+[
+  {
+    "original_id": 947190,
+    "original": {
+      "id": 947190,
+      "group_id": 900259,
+      "type": "short_answer",
+      "question": "<div class='question'><p>서술형 3. 세 수 \\(\\displaystyle a\\), \\(\\displaystyle b\\), \\(\\displaystyle c\\) 가 있을 때, \\(\\displaystyle a \\times c = -\\frac{3}{4}\\), <br>\\(\\displaystyle (a+b) \\times c = -2\\) 가 성립한다. 이때 \\(\\displaystyle b \\times c\\) 의 값을 구하시오. <br>(단, 모든 풀이 과정을 자세히 쓰시오.) [8점]</p></div>",
+      "refer": null,
+      "choice1": null,
+      "choice2": null,
+      "choice3": null,
+      "choice4": null,
+      "choice5": null,
+      "answer": "<p>$-\\frac{5}{4}$</p>",
+      "solution": "<div class='solution'>\n<p>문제에서 주어진 식은 다음과 같다.</p>\n<ul>\n<li><p>첫 번째 식: $a\\times c = -\\cfrac{3}{4}$</p></li>\n<li><p>두 번째 식: $(a+b)\\times c = -2$</p></li>\n</ul>\n<p>$b\\times c$를 구하기 위해 두 번째 식에 첫 번째 식의 값을 대입한다.</p>\n<ul>\n<li><p>분배법칙에 따라 $(a+b)c = a\\,c + b\\,c$ 이므로 $ (a+b)c = a\\times c + b\\times c $</p></li>\n<li><p>값을 대입하면 $ -2 = -\\cfrac{3}{4} + b\\times c $</p></li>\n<li><p>이항하면 $ b\\times c = -2 -\\bigl(-\\cfrac{3}{4}\\bigr) = -2 + \\cfrac{3}{4} = -\\cfrac{8}{4} + \\cfrac{3}{4} = -\\cfrac{5}{4} $</p></li>\n</ul>\n<p>따라서 정답은 $-\\cfrac{5}{4}$ 이다.</p>\n</div>",
+      "human_review": "UNVERIFIED"
+    },
+    "fixed": {
+      "type": "short_answer",
+      "question": "<div class=\"question\"><p>세 수 $a$, $b$, $c$가 있을 때, $a \\times c = -\\cfrac{3}{4}$, $(a+b) \\times c = -2$가 성립한다. 이때 $b \\times c$의 값을 구하시오.</p></div>",
+      "refer": null,
+      "choice1": null,
+      "choice2": null,
+      "choice3": null,
+      "choice4": null,
+      "choice5": null,
+      "answer": "$-\\cfrac{5}{4}$",
+      "solution": "<div class=\"solution\"><p>분배법칙을 이용하여 $(a+b) \\times c = -2$를 전개하면 다음과 같다.</p><p>$(a \\times c) + (b \\times c) = -2$</p><p>이 식에 $a \\times c = -\\cfrac{3}{4}$을 대입하면</p><p>$-\\cfrac{3}{4} + (b \\times c) = -2$</p><p>$b \\times c = -2 - \\left( -\\cfrac{3}{4} \\right)$</p><p>$b \\times c = -2 + \\cfrac{3}{4}$</p><p>$b \\times c = -\\cfrac{8}{4} + \\cfrac{3}{4} = -\\cfrac{5}{4}$</p><p>따라서 정답은 $-\\cfrac{5}{4}$ 이다.</p></div>"
+    }
+  },
+  {
+    "original_id": 947191,
+    "original": {
+      "id": 947191,
+      "group_id": 900260,
+      "type": "short_answer",
+      "question": "<div class='question'><p>서술형 4. 어떤 일차식 A에 \\(\\displaystyle -\\frac{1}{2}\\) 를 곱해야 할 것을 잘못하여 \\(\\displaystyle -\\frac{1}{2}\\) 로 나누었더니 \\(\\displaystyle 16x-24\\) 가 되었다. 다음 물음에 답하시오.<br>(단, 모든 풀이 과정을 자세히 쓰시오.) [13점]<br>(1) 어떤 일차식 A를 구하는 식을 쓰고, 일차식 A를 구하시오. [8점]</p></div>",
+      "refer": null,
+      "choice1": null,
+      "choice2": null,
+      "choice3": null,
+      "choice4": null,
+      "choice5": null,
+      "answer": "-8x + 12",
+      "solution": "<div class='solution'>\n<p>어떤 일차식 A에 $-\\cfrac12$를 곱해야 할 것을 잘못하여 $-\\cfrac12$로 나누었더니 $16x - 24$가 되었다. 이를 식으로 나타내면 $A \\div \\bigl(-\\cfrac12\\bigr) = 16x - 24$</p>\n<p>나눗셈을 곱셈으로 바꾸면 $\\div(-\\cfrac12)=\\times(-2)$ 이다.</p>\n<ul>\n<li>$A \\times (-2) = 16x - 24$</li>\n<li>$양변을 -2로 나누면 A = \\cfrac{16x - 24}{-2}$</li>\n<li>$분자를 나누면 A = -8x + 12$</li>\n</ul>\n<p>따라서 정답은 $A = -8x + 12$ 이다.</p>\n</div>",
+      "human_review": "UNVERIFIED"
+    },
+    "fixed": {
+      "type": "short_answer",
+      "question": "<div class=\"question\"><p>어떤 일차식 $A$에 $-\\cfrac{1}{2}$을 곱해야 할 것을 잘못하여 $-\\cfrac{1}{2}$로 나누었더니 $16x-24$가 되었다. 이때, 일차식 $A$를 구하시오.</p></div>",
+      "refer": null,
+      "choice1": null,
+      "choice2": null,
+      "choice3": null,
+      "choice4": null,
+      "choice5": null,
+      "answer": "$-8x + 12$",
+      "solution": "<div class=\"solution\"><div><p>어떤 일차식 $A$에 $-\\cfrac{1}{2}$을 나누어 $16x - 24$가 되었으므로 식을 세우면 다음과 같다.</p><p>$A \\div \\left( -\\cfrac{1}{2} \\right) = 16x - 24$</p><p>나눗셈을 곱셈으로 고치면 역수를 곱하는 것과 같으므로</p><p>$A \\times (-2) = 16x - 24$</p><p>양변을 $-2$로 나누면</p><p>$A = \\cfrac{16x - 24}{-2}$</p><p>$A = -8x + 12$</p><p>따라서 정답은 $-8x + 12$ 이다.</p></div></div>"
+    }
+  },
+  {
+    "original_id": 947193,
+    "original": {
+      "id": 947193,
+      "group_id": 900262,
+      "type": "short_answer",
+      "question": "<div class='question'><p>서술형 5. \\(\\displaystyle a = -2\\), \\(\\displaystyle b = 3\\) 일 때, 다음 식의 값을 구하시오.<br>(단, 모든 풀이 과정을 자세히 쓰시오.) [7점]<br>(1) \\(\\displaystyle 7a + 2b\\) [3점]</p></div>",
+      "refer": null,
+      "choice1": null,
+      "choice2": null,
+      "choice3": null,
+      "choice4": null,
+      "choice5": null,
+      "answer": "-8",
+      "solution": "<div class='solution'>\n  <p>주어진 변수의 값을 식에 대입하여 계산한다.</p>\n  <ul><li>① 대입: <br><p>$7a+2b=7\\times(-2)+2\\times3$</p></li><li>② 계산: <br><p>$7\\times(-2)=-14,\\quad2\\times3=6$ 이므로</p><br><p>$-14+6=-8$</p></li>\n  </ul>\n  <p>따라서 정답은 $-8$ 이다.</p>\n</div>",
+      "human_review": "UNVERIFIED"
+    },
+    "fixed": {
+      "type": "short_answer",
+      "question": "<div class=\"question\"><p>$a = -2$, $b = 3$ 일 때, $7a + 2b$ 의 값을 구하시오.</p></div>",
+      "refer": null,
+      "choice1": null,
+      "choice2": null,
+      "choice3": null,
+      "choice4": null,
+      "choice5": null,
+      "answer": "$-8$",
+      "solution": "<div class=\"solution\"><div><p>주어진 변수의 값을 식에 대입하여 계산한다.</p><p>$7a + 2b$ 에 $a = -2$, $b = 3$ 을 대입하면</p><p>$7 \\times (-2) + 2 \\times 3 = -14 + 6 = -8$</p><p>따라서 정답은 $-8$ 이다.</p></div></div>"
+    }
+  },
+  {
+    "original_id": 947194,
+    "original": {
+      "id": 947194,
+      "group_id": 900263,
+      "type": "short_answer",
+      "question": "<div class='question'><p>서술형 5. \\(\\displaystyle a = -2\\), \\(\\displaystyle b = 3\\) 일 때, 다음 식의 값을 구하시오.<br>(단, 모든 풀이 과정을 자세히 쓰시오.) [7점]<br>(2) \\(\\displaystyle 3a^2 - \\frac{5}{b} + 8\\) [4점]</p></div>",
+      "refer": null,
+      "choice1": null,
+      "choice2": null,
+      "choice3": null,
+      "choice4": null,
+      "choice5": null,
+      "answer": "<p>$\\frac{55}{3}$</p>",
+      "solution": "<div class='solution'>\n<p>주어진 식은 \\(3a^2 - \\cfrac{5}{b} + 8\\) 이다.</p>\n<p>\\(a=-2\\) 이므로 \\(a^2=4\\) 이다. \\(3a^2 = 12\\) 이다. 또한 \\(b=3\\) 이므로 \\(\\cfrac{5}{b}=\\cfrac{5}{3}\\) 이다. 식에 대입하면 \\(3a^2 - \\cfrac{5}{b} + 8 = 12 - \\cfrac{5}{3} + 8\\) 이다. 통분하면 \\(12+8 = 20 = \\cfrac{60}{3}\\) 이고 \\(\\cfrac{60}{3} - \\cfrac{5}{3}= \\cfrac{55}{3}\\) 이다.</p>\n<p><strong>따라서 정답은 \\(\\cfrac{55}{3}\\) 이다.</strong></p>\n</div>",
+      "human_review": "UNVERIFIED"
+    },
+    "fixed": {
+      "type": "short_answer",
+      "question": "<div class=\"question\"><p>$a = -2$, $b = 3$ 일 때, 식 $3a^2 - \\cfrac{5}{b} + 8$ 의 값을 구하시오.</p></div>",
+      "refer": null,
+      "choice1": null,
+      "choice2": null,
+      "choice3": null,
+      "choice4": null,
+      "choice5": null,
+      "answer": "$\\cfrac{55}{3}$",
+      "solution": "<div class=\"solution\"><p>주어진 식 $3a^2 - \\cfrac{5}{b} + 8$ 에 $a = -2$, $b = 3$ 을 대입하면 다음과 같다.</p><div>$3 \\times (-2)^2 - \\cfrac{5}{3} + 8$</div><p>$= 3 \\times 4 - \\cfrac{5}{3} + 8$</p><p>$= 12 - \\cfrac{5}{3} + 8$</p><p>$= 20 - \\cfrac{5}{3}$</p><p>$= \\cfrac{60}{3} - \\cfrac{5}{3}$</p><p>$= \\cfrac{55}{3}$</p><p>따라서 정답은 $\\cfrac{55}{3}$ 이다.</p></div>"
+    }
+  },
+  {
+    "original_id": 947232,
+    "original": {
+      "id": 947232,
+      "group_id": 900301,
+      "type": "multiple_choice",
+      "question": "<div class='question'><p>다음 중 집합이 \\(\\displaystyle 아닌\\) 것은? [3.2점]</p></div>",
+      "refer": null,
+      "choice1": "<p>사계절의 모임</p>",
+      "choice2": "<p>날개가 있는 동물의 모임</p>",
+      "choice3": "<p>1보다 작은 자연수의 모임</p>",
+      "choice4": "<p>무리수 \\(\\displaystyle \\pi\\) 에 가까운 실수의 모임</p>",
+      "choice5": "<p>세계에서 해발 8000m 이상인 산의 모임</p>",
+      "answer": "4",
+      "solution": "<div class='solution'>\n<p>집합이란 잘 정의된 방법으로 원소를 분명히 구별할 수 있는 요소들의 모임이다.</p>\n<ul>\n<li><p>사계절의 모임: 봄, 여름, 가을, 겨울로 명확히 구분되므로 집합이다.</p></li>\n<li><p>날개가 있는 동물의 모임: 날개가 있다는 조건이 분명하여 집합이다.</p></li>\n<li><p>$1$보다 작은 자연수의 모임: 자연수 중 $1$보다 작은 수는 없으므로 공집합이며, 공집합도 집합이다.</p></li>\n<li><p>무리수 $\\pi$에 가까운 실수의 모임: “가까운”의 기준이 모호하여 잘 정의된 집합이라고 할 수 없다.</p></li>\n<li><p>세계에서 해발 $8000\\,\\text{m}$ 이상인 산의 모임: $8000\\,\\text{m}$ 이상이라는 조건이 분명하여 집합이다.</p></li>\n</ul>\n<p>따라서 정답은 무리수 $\\pi$에 가까운 실수의 모임이다.</p>\n</div>",
+      "human_review": "UNVERIFIED"
+    },
+    "fixed": {
+      "type": "multiple_choice",
+      "question": "<div class=\"question\"><p>다음 중 집합이 아닌 것은? <p></div>",
+      "refer": null,
+      "choice1": "사계절의 모임",
+      "choice2": "날개가 있는 동물의 모임",
+      "choice3": "$1$보다 작은 자연수의 모임",
+      "choice4": "무리수 $\\pi$에 가까운 실수의 모임",
+      "choice5": "세계에서 해발 $8000\\text{m}$ 이상인 산의 모임",
+      "answer": "4",
+      "solution": "<div class=\"solution\"><div><p>집합이란 그 대상을 분명하게 정할 수 있는 것들의 모임을 말한다.</p></div><div><p>① 사계절의 모임: {봄, 여름, 가을, 겨울}로 대상을 분명히 정할 수 있으므로 집합이다.</p><p>② 날개가 있는 동물의 모임: 날개의 유무에 따라 대상을 분명히 정할 수 있으므로 집합이다.</p><p>③ $1$보다 작은 자연수의 모임: 조건에 맞는 원소가 하나도 없으나, 대상을 분명히 가릴 수 있으므로 공집합이며 집합이다.</p><p>④ 무리수 $\\pi$에 가까운 실수의 모임: '가깝다'는 기준이 주관적이고 모호하여 대상을 분명히 정할 수 없으므로 집합이 아니다.</p><p>⑤ 세계에서 해발 $8000\\text{m}$ 이상인 산의 모임: 해발 높이라는 객관적 기준이 있으므로 집합이다.</p></div><p>따라서 정답은 ④ 무리수 $\\pi$에 가까운 실수의 모임 이다.</p></div>"
+    }
+  },
+  {
+    "original_id": 947243,
+    "original": {
+      "id": 947243,
+      "group_id": 900312,
+      "type": "multiple_choice",
+      "question": "<div class='question'><p>두 집합 \\(\\displaystyle X, Y\\) 는 다음 &lt;조건&gt;을 모두 만족한다. 집합 \\(\\displaystyle X=\\{x_1, x_2, x_3, x_4\\}\\) 라 할 때, \\(\\displaystyle x_2+x_3\\) 의 값은? (단, \\(\\displaystyle x_1&lt;x_2&lt;x_3&lt;x_4\\)) [4.3점]</p></div>",
+      "refer": "<div class='reference'><p>&lt;조건&gt;<br><ul><li>(가) 두 집합 \\(\\displaystyle X, Y\\) 의 모든 원소는 자연수이다.</li><li>(나) \\(\\displaystyle n(Y)=4\\)</li><li>(다) \\(\\displaystyle X\\cap Y=\\{6, 11\\}\\)</li><li>(라) \\(\\displaystyle X=\\{x-k|x\\in Y, k는 상수\\}\\)</li><li>(마) 집합 \\(\\displaystyle Y\\) 의 원소 중 최소값은 3이다.</li><li>(바) 집합 \\(\\displaystyle X-Y\\) 의 모든 원소의 합은 23이다.</li><li>(사) 집합 \\(\\displaystyle X\\cup Y\\) 의 모든 원소의 합은 51이다.</li></ul></p></div>",
+      "choice1": "<p>17</p>",
+      "choice2": "<p>20</p>",
+      "choice3": "<p>23</p>",
+      "choice4": "<p>26</p>",
+      "choice5": "<p>29</p>",
+      "answer": "2",
+      "solution": "<div class='solution'>\n  <p>문제에서 주어진 조건을 정리하면 다음과 같다.</p>\n  <ul><li>두 집합 $X$, $Y$는 자연수 원소를 가지며, $|Y|=4$, $|X|=4$이다.</li><li>$X\\cap Y=\\{6,11\\}$이므로 $X$와 $Y$에 공통으로 $6,11$이 있다.</li><li>$X\\cup Y$의 모든 원소 합이 $51$이고, $X- Y$의 원소 합이 $23$이다.</li><li>$Y$의 최소값이 $3$이므로 $Y=\\{3,6,11,y_4\\}$ 형태이다.</li>\n  </ul>\n  <p>합집합과 차집합의 합을 이용하면 $\\text{합}(Y)=51-23=28$가 된다. 따라서 $3+6+11+y_4=28$에서 $y_4=8$이고 $Y=\\{3,6,8,11\\}$이다.</p>\n  <p>조건 $X=\\{y-k \\mid y\\in Y\\}$와 교집합이 $\\{6,11\\}$이 되도록 $k$를 구하면 $k=-3$이다. 이때 $X=\\{3-(-3),6-(-3),8-(-3),11-(-3)\\}=\\{6,9,11,14\\}$이며 정렬하면 $x_1=6$, $x_2=9$, $x_3=11$, $x_4=14$이다.</p>\n  <p>따라서 정답은 $20$이다.</p>\n</div>",
+      "human_review": "UNVERIFIED"
+    },
+    "fixed": {
+      "type": "multiple_choice",
+      "question": "<div class=\"question\"><p>두 집합 $X, Y$는 다음 조건을 모두 만족한다. 집합 $X=\\{x_1, x_2, x_3, x_4\\}$라 할 때, $x_2+x_3$의 값은? (단, $x_1 < x_2 < x_3 < x_4$)</p></div>",
+      "refer": "<div class=\"reference\"><ol><li>(가) 두 집합 $X, Y$의 모든 원소는 자연수이다.</li><li>(나) $n(Y)=4$</li><li>(다) $X \\cap Y = \\{6, 11\\}$</li><li>(라) $X = \\{x-k | x \\in Y, k \\text{는 상수}\\}$</li><li>(마) 집합 $Y$의 원소 중 최솟값은 $3$이다.</li><li>(바) 집합 $X-Y$의 모든 원소의 합은 $23$이다.</li><li>(사) 집합 $X \\cup Y$의 모든 원소의 합은 $51$이다.</li></ol></div>",
+      "choice1": "$17$",
+      "choice2": "$20$",
+      "choice3": "$23$",
+      "choice4": "$26$",
+      "choice5": "$29$",
+      "answer": "2",
+      "solution": "<div class=\"solution\"><p>조건 (나), (다)에 의해 $n(X)=4$이고 $X \\cap Y = \\{6, 11\\}$이다.</p><p>조건 (바)에서 집합 $X-Y$의 모든 원소의 합이 $23$이므로, 집합 $X$의 모든 원소의 합 $S(X)$는 다음과 같다.</p><p>$S(X) = S(X-Y) + S(X \\cap Y) = 23 + (6+11) = 40$</p><p>조건 (사)에서 $S(X \\cup Y) = S(X) + S(Y) - S(X \\cap Y) = 51$이므로,</p><p>$40 + S(Y) - 17 = 51$</p><p>$S(Y) = 28$</p><p>조건 (마)에서 $Y$의 최솟값이 $3$이고, $6, 11 \\in Y$이므로 $Y = \\{3, 6, 11, y_4\\}$라 하면,</p><p>$3 + 6 + 11 + y_4 = 28$에서 $y_4 = 8$이다.</p><p>따라서 $Y = \\{3, 6, 8, 11\\}$이다.</p><p>조건 (라)에서 $X = \\{3-k, 6-k, 8-k, 11-k\\}$이고 $X \\cap Y = \\{6, 11\\}$이므로,</p><p>$k = -3$일 때 $X = \\{6, 9, 11, 14\\}$가 되어 조건을 만족한다.</p><p>이때 $x_1=6, x_2=9, x_3=11, x_4=14$이므로,</p><p>$x_2 + x_3 = 9 + 11 = 20$</p><p>따라서 정답은 ② $20$ 이다.</p></div>"
+    }
+  },
+  {
+    "original_id": 947244,
+    "original": {
+      "id": 947244,
+      "group_id": 900313,
+      "type": "short_answer",
+      "question": "<div class='question'><p>(단답형) 실수 \\(\\displaystyle x\\) 에 대한 두 조건 <br>\\(\\displaystyle p: |x-5|&gt;2\\), <br>\\(\\displaystyle q: x^2-(a+b)x+ab\\leq0\\) <br>에 대하여 \\(\\displaystyle \\sim p\\), \\(\\displaystyle q\\) 가 \\(\\displaystyle q\\) 이기 위한 충분조건일 때, \\(\\displaystyle a\\) 의 최대값과 \\(\\displaystyle b\\) 의 최소값의 차를 구하시오. (단, \\(\\displaystyle a&lt;b\\)) [4점]</p></div>",
+      "refer": null,
+      "choice1": null,
+      "choice2": null,
+      "choice3": null,
+      "choice4": null,
+      "choice5": null,
+      "answer": "4",
+      "solution": "<div class='solution'>\n  <p>$\\sim p$는 $|x-5|\\le2$ 이므로 $x\\in[3,7]$ 임을 알 수 있다. 즉 “$\\sim p$일 때 $q$가 성립”하기 위한 충분조건은 구간 $[3,7]$의 모든 $x$에 대해 $x^2-(a+b)x+ab\\le0$이어야 한다.</p>\n  <ul><li><p>함수 $f(x)=x^2-(a+b)x+ab$은 아래로 볼록이므로 구간 $[3,7]$에서의 최댓값은 양 끝점에서 취한다.</p></li><li><p>$f(3)=9-3(a+b)+ab=ab-3a-3b+9\\le0$, $f(7)=49-7(a+b)+ab=ab-7a-7b+49\\le0$ 이어야 한다.</p></li><li><p>이를 인수분해하면 $ab-3a-3b+9=(a-3)(b-3)\\le0$, $ab-7a-7b+49=(a-7)(b-7)\\le0$ 가 되어야 하고, 또한 조건에서 $a\\lt b$이다.</p></li><li><p>$(a-3)(b-3)\\le0$와 $(a-7)(b-7)\\le0$를 동시에 만족시키기 위해서는 $a\\le3,\\;b\\ge7$이어야 한다.</p></li><li><p>$a$의 최대값은 $3$, $b$의 최소값은 $7$이며, 둘의 차이는 $4$이다.</p></li>\n  </ul>\n  <p>따라서 정답은 $4$ 이다.</p>\n</div>",
+      "human_review": "UNVERIFIED"
+    },
+    "fixed": {
+      "type": "short_answer",
+      "question": "<div class=\"question\"><p>실수 $x$에 대한 두 조건</p><p>$p: |x-5| > 2$,</p><p>$q: x^2-(a+b)x+ab \\le 0$</p><p>에 대하여 $\\sim p$가 $q$이기 위한 충분조건일 때, $a$의 최댓값과 $b$의 최솟값의 차를 구하시오. (단, $a < b$)</p></div>",
+      "refer": null,
+      "choice1": null,
+      "choice2": null,
+      "choice3": null,
+      "choice4": null,
+      "choice5": null,
+      "answer": "$4$",
+      "solution": "<div class=\"solution\"><div><p>조건 $p$가 $|x-5| > 2$이므로, 그 부정인 $\\sim p$는 $|x-5| \\le 2$이다.</p><p>이를 풀면 $-2 \\le x-5 \\le 2$에서 $3 \\le x \\le 7$이다.</p><p>조건 $q$는 $x^2-(a+b)x+ab \\le 0$이므로 $(x-a)(x-b) \\le 0$이다.</p><p>$a < b$이므로 조건 $q$를 만족하는 $x$의 범위는 $a \\le x \\le b$이다.</p><p>$\\sim p$가 $q$이기 위한 충분조건이 되려면 $\\sim p$의 집합이 $q$의 집합에 포함되어야 한다.</p><p>즉, $[3, 7] \\subset [a, b]$이어야 하므로 $a \\le 3$이고 $b \\ge 7$이다.</p><p>따라서 $a$의 최댓값은 $3$이고, $b$의 최솟값은 $7$이다.</p><p>두 값의 차는 $7 - 3 = 4$이다.</p></div><p>따라서 정답은 $4$ 이다.</p></div>"
+    }
+  },
+  {
+    "original_id": 947250,
+    "original": {
+      "id": 947250,
+      "group_id": 900319,
+      "type": "multiple_choice",
+      "question": "<div class='question'><p>다항식 \\(\\displaystyle (x+2)(x+3)(x+4)(x+5) + k\\) 가 \\(\\displaystyle x\\) 에 대한 이차식 \\(\\displaystyle f(x)\\) 의 제곱으로 인수분해될 때, 상수 \\(\\displaystyle k\\) 의 값과 \\(\\displaystyle f(0)\\) 의 값의 합은? [3.6점]</p></div>",
+      "refer": null,
+      "choice1": "<p>9</p>",
+      "choice2": "<p>10</p>",
+      "choice3": "<p>11</p>",
+      "choice4": "<p>12</p>",
+      "choice5": "<p>13</p>",
+      "answer": "4",
+      "solution": "<div class='solution'>\n<p>다항식 \\((x+2)(x+3)(x+4)(x+5)+k\\)가 어떤 이차식 \\(f(x)\\)의 제곱이 되려면 \\(f(x)=x^{2}+7x+a\\)라 하고 전개하여 계수를 비교한다.</p>\n<ul>\n<li><p>\\(f(x)^{2}=(x^{2}+7x+a)^{2}=x^{4}+14x^{3}+(49+2a)x^{2}+14ax+a^{2}\\)이다.</p></li>\n<li><p>주어진 다항식을 전개하면 \\((x+2)(x+3)(x+4)(x+5)=x^{4}+14x^{3}+71x^{2}+154x+120\\)이다.</p></li>\n<li><p>계수 비교</p>\n<ul>\n<li><p>\\(x^{2}\\) 항: \\(49+2a=71\\)이므로 \\(a=11\\)이다.</p></li>\n<li><p>\\(x\\) 항: \\(14a=154\\)이므로 자동 만족이다.</p></li>\n<li><p>상수항: \\(a^{2}=120+k\\)이므로 \\(121=120+k\\)이고 \\(k=1\\)이다.</p></li>\n</ul>\n</li>\n<li><p>\\(f(x)=x^{2}+7x+11\\)이다. \\(f(0)=11\\)이다. \\(k+f(0)=1+11=12\\)이다.</p></li>\n</ul>\n<p>따라서 정답은 \\(12\\) 이다.</p>\n</div>",
+      "human_review": "UNVERIFIED"
+    },
+    "fixed": {
+      "type": "multiple_choice",
+      "question": "<div class=\"question\"><p>다항식 $(x+2)(x+3)(x+4)(x+5) + k$ 가 $x$ 에 대한 이차식 $f(x)$ 의 제곱으로 인수분해될 때, 상수 $k$ 의 값과 $f(0)$ 의 값의 합은?</p></div>",
+      "refer": null,
+      "choice1": "$9$",
+      "choice2": "$10$",
+      "choice3": "$11$",
+      "choice4": "$12$",
+      "choice5": "$13$",
+      "answer": "4",
+      "solution": "<div class=\"solution\"><div><p>주어진 다항식의 공통부분을 만들기 위해 상수항의 합이 같아지도록 묶어서 전개하면 다음과 같다.</p><p>$(x+2)(x+5)(x+3)(x+4) + k = (x^2 + 7x + 10)(x^2 + 7x + 12) + k$</p><p>$x^2 + 7x = X$로 치환하면,</p><p>$(X + 10)(X + 12) + k = X^2 + 22X + 120 + k$</p></div><div><p>이 식이 이차식 $f(x)$의 제곱으로 인수분해되려면 $X$에 대한 완전제곱식이 되어야 한다.</p><p>$X^2 + 22X + 120 + k = (X + 11)^2$</p><p>상수항을 비교하면 $120 + k = 11^2 = 121$이므로 $k = 1$이다.</p></div><div><p>따라서 다항식은 $(X + 11)^2 = (x^2 + 7x + 11)^2$이 되므로 $f(x) = x^2 + 7x + 11$ 또는 $f(x) = -(x^2 + 7x + 11)$이다.</p><p>이때 $f(0) = 11$ 또는 $f(0) = -11$이지만, 일반적으로 양의 계수를 갖는 $f(x)$를 고려하거나 문제의 선택지를 통해 판단한다.</p><p>$f(0) = 11$일 때, $k + f(0) = 1 + 11 = 12$이다.</p></div><p>따라서 정답은 ④ $12$ 이다.</p></div>"
+    }
+  },
+  {
+    "original_id": 947257,
+    "original": {
+      "id": 947257,
+      "group_id": 900326,
+      "type": "multiple_choice",
+      "question": "<div class='question'><p>모든 실수 \\(\\displaystyle x\\) 에 대하여 이차항의 계수가 1인 두 이차다항식 \\(\\displaystyle f(x), g(x)\\) 가 다음 조건을 만족시킨다. \\(\\displaystyle f(4)+g(4)\\) 의 값은? [4.3점]</p></div>",
+      "refer": "<div class='reference'><p>(가) \\(\\displaystyle f(x) = g(x) + 4\\) <span style=\"margin-left: 1em;\"></span> (나) \\(\\displaystyle f(3)g(1) \\neq 0\\)<br>(다) \\(\\displaystyle \\{f(x)\\}^2 + f(x)g(x) + \\{g(x)\\}^2 = 3x^4 - 12x^3 + 6x^2 + 12x + 7\\)</p></div>",
+      "choice1": "<p>14</p>",
+      "choice2": "<p>16</p>",
+      "choice3": "<p>18</p>",
+      "choice4": "<p>20</p>",
+      "choice5": "<p>22</p>",
+      "answer": "1",
+      "solution": "<div class='solution'>\n  \n  <p>이차항의 계수가 $1$이다. $f(x)=x^2+ax+b$, $g(x)=x^2+cx+d$라 둔다.</p>\n  <p>조건 (가) $f(x)=g(x)+4$이다. 따라서 $f(x)-g(x)=(a-c)x+(b-d)=4$이며 계수 비교로 $a-c=0$, $b-d=4$이다. 즉 $a=c$, $b=d+4$이다.</p>\n  <p>따라서 $f(x)=g(x)+4$이다. $f(x)^2+f(x)g(x)+g(x)^2=(g+4)^2+g(g+4)+g^2=3g(x)^2+12g(x)+16$이다. 이것이 조건 (다)이다.</p>\n  <p>$3(x^2+ax+d)^2+12(x^2+ax+d)+16=3x^4-12x^3+6x^2+12x+7$이다. 좌변을 전개하여 계수 비교한다.</p>\n  <p>$x^3$ 항에서 $6a=-12$이므로 $a=-2$이다. $x^2$ 항에서 $3(a^2+2d)+12=6$이므로 $d=-3$이다.</p>\n  <p>따라서 $g(x)=x^2-2x-3$, $f(x)=g(x)+4=x^2-2x+1$이다.</p>\n  <p>$f(4)=16-8+1=9$, $g(4)=16-8-3=5$이므로 $f(4)+g(4)=14$이다.</p>\n  <p>따라서 정답은 $14$ 이다.</p>\n</div>",
+      "human_review": "UNVERIFIED"
+    },
+    "fixed": {
+      "type": "multiple_choice",
+      "question": "<div class=\"question\"><p>모든 실수 $x$에 대하여 이차항의 계수가 $1$인 두 이차다항식 $f(x), g(x)$가 다음 조건을 만족시킨다. $f(4)+g(4)$의 값은?</p></div>",
+      "refer": "<div class=\"reference\"><ol><li>(가) $f(x) = g(x) + 4$</li><li>(나) $f(3)g(1) \\neq 0$</li><li>(다) $\\{f(x)\\}^2 + f(x)g(x) + \\{g(x)\\}^2 = 3x^4 - 12x^3 + 6x^2 + 12x + 7$</li></ol></div>",
+      "choice1": "$14$",
+      "choice2": "$16$",
+      "choice3": "$18$",
+      "choice4": "$20$",
+      "choice5": "$22$",
+      "answer": "1",
+      "solution": "<div class=\"solution\"><p>이차항의 계수가 $1$인 두 이차다항식 $f(x), g(x)$에 대하여 조건 (가)에 의해 $f(x) = g(x) + 4$이다.</p><p>조건 (다)의 좌변에 $f(x) = g(x) + 4$를 대입하면 다음과 같다.</p><div>$$\\begin{aligned} \\{g(x)+4\\}^2 + (g(x)+4)g(x) + \\{g(x)\\}^2 &= \\{g(x)^2 + 8g(x) + 16\\} + \\{g(x)^2 + 4g(x)\\} + g(x)^2 \\\\ &= 3\\{g(x)\\}^2 + 12g(x) + 16 \\end{aligned}$$</div><p>따라서 $3\\{g(x)\\}^2 + 12g(x) + 16 = 3x^4 - 12x^3 + 6x^2 + 12x + 7$이 성립한다.</p><p>$g(x) = x^2 + ax + b$라 하면,</p><div>$$3(x^2 + ax + b)^2 + 12(x^2 + ax + b) + 16 = 3x^4 - 12x^3 + 6x^2 + 12x + 7$$</div><p>좌변의 $x^3$항의 계수는 $6a$이므로 $6a = -12$에서 $a = -2$이다.</p><p>좌변의 $x^2$항의 계수는 $3(a^2 + 2b) + 12$이므로 $3(4 + 2b) + 12 = 6$에서 $12 + 6b + 12 = 6$, $6b = -18$, 즉 $b = -3$이다.</p><p>따라서 $g(x) = x^2 - 2x - 3$이고, $f(x) = g(x) + 4 = x^2 - 2x + 1$이다.</p><p>이때 $f(3) = 9 - 6 + 1 = 4$, $g(1) = 1 - 2 - 3 = -4$이므로 $f(3)g(1) = -16 \\neq 0$이 되어 조건 (나)를 만족한다.</p><p>$f(4) = 16 - 8 + 1 = 9$, $g(4) = 16 - 8 - 3 = 5$이므로 $f(4) + g(4) = 9 + 5 = 14$이다.</p><p>따라서 정답은 ① $14$ 이다.</p></div>"
+    }
+  },
+  {
+    "original_id": 947260,
+    "original": {
+      "id": 947260,
+      "group_id": 900329,
+      "type": "short_answer",
+      "question": "<div class='question'><p>[단답형3] 각 모서리의 길이가 \\(\\displaystyle x, 2y, z\\) 인 직육면체의 대각선의 길이가 \\(\\displaystyle 5\\sqrt{5}\\) 이고, 모든 모서리의 길이의 합이 60이다.<br> \\(\\displaystyle 4x^2y^2 + 4y^2z^2 + z^2x^2 = 400\\) 일 때, 직육면체의 겉넓이를 구하시오. [4점]</p></div>",
+      "refer": null,
+      "choice1": null,
+      "choice2": null,
+      "choice3": null,
+      "choice4": null,
+      "choice5": null,
+      "answer": "100",
+      "solution": "<div class='solution'>\n<p>직육면체의 모서리 길이를 $x$, $2y$, $z$라 하면</p>\n<ul>\n<li><strong>모서리 합:</strong> $4x+4(2y)+4z=60$이므로 <strong>$x+2y+z=15$</strong></li>\n<li><strong>대각선 길이:</strong> $\\sqrt{x^{2}+(2y)^{2}+z^{2}}=5\\sqrt{5}$이므로 <strong>$x^{2}+4y^{2}+z^{2}=125$</strong></li>\n</ul>\n<p>모서리 $x$, $2y$, $z$인 각 면의 넓이를 $S_{1}=2xy$, $S_{2}=2yz$, $S_{3}=zx$라 하면, 구하고자 하는 겉넓이는 $S=2(S_{1}+S_{2}+S_{3})$이다.</p>\n<p>이때 $x+z$를 $u$, $xz$를 $v$라 놓으면</p>\n<ul>\n<li>$u+2y=15$ ⇒ $u=15-2y$</li>\n<li>대각선 식에서 $x^{2}+z^{2}=125-4y^{2}$이고, 또 $x^{2}+z^{2}=u^{2}-2v$이므로 $u^{2}-2v=125-4y^{2}$ ⇒ $2v=u^{2}+4y^{2}-125$ ⇒ $v=\\cfrac{1}{2}\\bigl(u^{2}+4y^{2}-125\\bigr)$</li>\n</ul>\n<p>여기에 $u=15-2y$를 대입하면</p>\n<ul>\n<li>$u^{2}=(15-2y)^{2}=225-60y+4y^{2}$</li>\n<li>$v=\\cfrac{1}{2}\\bigl[(225-60y+4y^{2})+4y^{2}-125\\bigr]=\\cfrac{1}{2}(100-60y+8y^{2})=4y^{2}-30y+50$</li>\n</ul>\n<p>면 넓이의 합 $T=S_{1}+S_{2}+S_{3}$는</p>\n<ul>\n<li>$T=2xy+2yz+zx=2y(x+z)+xz=2y\\,u+v$</li>\n<li>$u=15-2y$, $v=4y^{2}-30y+50$이므로 $T=2y(15-2y)+(4y^{2}-30y+50)=50$</li>\n</ul>\n<p>구하려는 겉넓이 $S$는</p>\n<p><strong>$S=2T=2\\cdot50=100$</strong></p>\n<p>따라서 정답은 $100$ 이다.</p>\n</div>",
+      "human_review": "UNVERIFIED"
+    },
+    "fixed": {
+      "type": "short_answer",
+      "question": "<div class=\"question\"><p>각 모서리의 길이가 $x$, $2y$, $z$인 직육면체의 대각선의 길이가 $5\\sqrt{5}$이고, 모든 모서리의 길이의 합이 $60$이다. $4x^2y^2 + 4y^2z^2 + z^2x^2 = 400$일 때, 이 직육면체의 겉넓이를 구하시오.</p></div>",
+      "refer": null,
+      "choice1": null,
+      "choice2": null,
+      "choice3": null,
+      "choice4": null,
+      "choice5": null,
+      "answer": "$100$",
+      "solution": "<div class=\"solution\"><div><p>직육면체의 세 모서리의 길이를 각각 $a = x$, $b = 2y$, $c = z$라 하자.</p><p>모든 모서리의 길이의 합이 $60$이므로,</p><p>$4(a+b+c) = 60$에서 $a+b+c = 15$이다.</p><p>대각선의 길이가 $5\\sqrt{5}$이므로,</p><p>$\\sqrt{a^2+b^2+c^2} = 5\\sqrt{5}$에서 $a^2+b^2+c^2 = 125$이다.</p><p>곱셈 공식 $(a+b+c)^2 = a^2+b^2+c^2 + 2(ab+bc+ca)$에 대입하면,</p><p>$15^2 = 125 + 2(ab+bc+ca)$</p><p>$225 = 125 + 2(ab+bc+ca)$</p><p>$2(ab+bc+ca) = 100$</p><p>따라서 $ab+bc+ca = 50$이다.</p><p>이때 직육면체의 겉넓이는 $2(ab+bc+ca)$이므로,</p><p>$2 \\times 50 = 100$이다.</p><p>참고로 문제에서 주어진 조건 $4x^2y^2 + 4y^2z^2 + z^2x^2 = 400$은 $(2xy)^2 + (2yz)^2 + (zx)^2 = (ab)^2 + (bc)^2 + (ca)^2 = 400$을 의미하며, 이는 $(ab+bc+ca)^2 - 2abc(a+b+c) = 50^2 - 2abc(15) = 400$에서 $2500 - 30abc = 400$, 즉 $30abc = 2100$, $abc = 70$임을 만족하는 조건으로 주어진 것이다.</p><p>따라서 정답은 $100$ 이다.</p></div></div>"
+    }
+  },
+  {
+    "original_id": 947261,
+    "original": {
+      "id": 947261,
+      "group_id": 900330,
+      "type": "short_answer",
+      "question": "<div class='question'><p>[단답형4] 두 복소수 \\(\\displaystyle \\alpha, \\beta\\) 에 대하여 &lt;보기&gt;에서 항상 옳은 것을 모두 고르시오. [4점]</p></div>",
+      "refer": "<div class='reference'><p>&lt;보기&gt;<br>ㄱ. \\(\\displaystyle \\alpha + \\beta i = \\overline{\\alpha - \\beta i}\\)<br>ㄴ. \\(\\displaystyle \\alpha \\overline{\\alpha} = 0\\) 이면 \\(\\displaystyle \\alpha = 0\\) 이다.<br>ㄷ. \\(\\displaystyle \\alpha = 2i,\\; \\beta = -2i\\) 이면 \\(\\displaystyle \\overline{\\alpha \\beta} = 4\\) 이다.<br>ㄹ. \\(\\displaystyle \\alpha^2 + \\beta^2 = 0\\) 이면 \\(\\displaystyle \\alpha = 0,\\; \\beta = 0\\) 이다.</p></div>",
+      "choice1": null,
+      "choice2": null,
+      "choice3": null,
+      "choice4": null,
+      "choice5": null,
+      "answer": "ㄴ, ㄷ",
+      "solution": "<div class='solution'>\n  <p>복소수 \\(\\alpha=a+bi,\\;\\beta=c+di\\)라 할 때 각 보기의 성립 여부를 따져보자.</p>\n  <ul><li><strong>ㄱ.</strong><p>좌변: \\(\\alpha+\\beta i=(a+bi)+(c+di)i=(a-d)+(b+c)i\\)</p><br><p>우변: \\(\\overline{\\alpha-\\beta i}=\\overline{(a+bi)-(c+di)i}=(a+d)+(c-b)i\\)</p><br><p>두 값이 같으려면 \\(b=0, d=0\\)이어야 하므로 항상 성립하지 않는다. (거짓)</p></li><li><strong>ㄴ.</strong><p>\\(\\alpha\\overline{\\alpha}=|\\alpha|^2=0\\)이면 \\(|\\alpha|=0\\)이고, 따라서 \\(\\alpha=0\\)이다. 항상 참이다. (참)</p></li><li><strong>ㄷ.</strong><p>\\(\\alpha=2i,\\;\\beta=-2i\\)일 때 \\(\\alpha\\beta=(2i)(-2i)=4\\)이고, \\(\\overline{4}=4\\)이므로 주어진 결과가 맞다. (참)</p></li><li><strong>ㄹ.</strong><p>예를 들어 \\(\\alpha=1,\\;\\beta=i\\)이면 \\(\\alpha^2+\\beta^2=1+(-1)=0\\)이지만 \\(\\alpha,\\beta\\neq0\\)이므로 성립하지 않는다. (거짓)</p></li>\n  </ul>\n  <p>따라서 정답은 ㄴ, ㄷ 이다.</p>\n</div>",
+      "human_review": "UNVERIFIED"
+    },
+    "fixed": {
+      "type": "short_answer",
+      "question": "<div class=\"question\"><p>두 복소수 $\\alpha, \\beta$에 대하여 &lt;보기&gt;에서 항상 옳은 것을 모두 고르시오. </p></div>",
+      "refer": "<div class=\"reference\"><ol><li>ㄱ. $\\alpha + \\beta i = \\overline{\\alpha - \\beta i}$</li><li>ㄴ. $\\alpha \\overline{\\alpha} = 0$ 이면 $\\alpha = 0$ 이다.</li><li>ㄷ. $\\alpha = 2i, \\beta = -2i$ 이면 $\\overline{\\alpha \\beta} = 4$ 이다.</li><li>ㄹ. $\\alpha^2 + \\beta^2 = 0$ 이면 $\\alpha = 0, \\beta = 0$ 이다.</li></ol></div>",
+      "choice1": null,
+      "choice2": null,
+      "choice3": null,
+      "choice4": null,
+      "choice5": null,
+      "answer": "ㄴ, ㄷ",
+      "solution": "<div class=\"solution\"><div><p>복소수 $\\alpha = a + bi, \\beta = c + di$ ($a, b, c, d$는 실수)라 할 때 각 보기의 성립 여부를 확인한다.</p><p>ㄱ. 좌변: $\\alpha + \\beta i = (a + bi) + (c + di)i = (a - d) + (b + c)i$</p><p>우변: $\\overline{\\alpha - \\beta i} = \\overline{(a + bi) - (c + di)i} = \\overline{(a + d) + (b - c)i} = (a + d) - (b - c)i = (a + d) + (c - b)i$</p><p>좌변과 우변이 항상 같지는 않으므로 거짓이다.</p><p>ㄴ. $\\alpha = a + bi$일 때, $\\alpha \\overline{\\alpha} = (a + bi)(a - bi) = a^2 + b^2 = 0$이면 실수 $a, b$에 대하여 $a = 0, b = 0$이므로 $\\alpha = 0$이다. 따라서 참이다.</p><p>ㄷ. $\\alpha = 2i, \\beta = -2i$이면 $\\alpha \\beta = (2i)(-2i) = -4i^2 = 4$이다. 실수의 켤레복소수는 자기 자신이므로 $\\overline{\\alpha \\beta} = \\overline{4} = 4$이다. 따라서 참이다.</p><p>ㄹ. [반례] $\\alpha = 1, \\beta = i$이면 $\\alpha^2 + \\beta^2 = 1^2 + i^2 = 1 - 1 = 0$이지만 $\\alpha \\neq 0, \\beta \\neq 0$이다. 따라서 거짓이다.</p><p>따라서 정답은 ㄴ, ㄷ 이다.</p></div></div>"
+    }
+  },
+  {
+    "original_id": 947262,
+    "original": {
+      "id": 947262,
+      "group_id": 900331,
+      "type": "short_answer",
+      "question": "<div class='question'><p>[단답형5] \\(\\displaystyle x\\) 에 대한 이차방정식 <br>\\(\\displaystyle x^2 - 6(a-b)x + 9(a+b)^2 - 37ab + 6a + 4b - 17 = 0\\)<br>이 중근을 갖도록 하는 정수 \\(\\displaystyle a, b\\) 에 대하여 \\(\\displaystyle a+b\\) 의 값 중에서 가장 작은 값을 구하시오. [5점]</p></div>",
+      "refer": null,
+      "choice1": null,
+      "choice2": null,
+      "choice3": null,
+      "choice4": null,
+      "choice5": null,
+      "answer": "2",
+      "solution": "<div class='solution'>\n  <p>이차방정식이 중근을 가지기 위한 조건은 판별식이 $0$이 되는 것이다.</p>\n  <ul><li><p>일차계수와 상수를 정리한다.<br>계수: $B=-6(a-b)$, 상수항: $C=9(a+b)^2-37ab+6a+4b-17$</p></li><li><p>판별식 $D= B^2-4C = 0$ 을 세운다.<br>$D = 36(a-b)^2 - 4\\bigl[9(a+b)^2 - 37ab + 6a + 4b -17\\bigr] = 0$</p></li><li><p>간단히 정리한다.<br>$9(a-b)^2 - \\bigl[9(a+b)^2 -37ab +6a +4b -17\\bigr] = 0$<br>⇒ $-36ab +37ab -6a -4b +17 = 0$<br>⇒ $ab -6a -4b +17 = 0$</p></li><li><p>$ab -6a -4b +17 = 0$을 b에 대해 풀면<br>$b(a-4) = 6a -17$<br>$b = 6 + \\cfrac{7}{a-4}$</p></li><li><p>$a,b$가 정수이므로 $a-4$는 $7$의 약수이다.<br>$a-4 = \\pm1, \\pm7$ 에 대하여 $a,b$를 구하면<br>$(a,b) = (5,13), (3,-1), (11,7), (-3,5)$<br>$a+b = 18, 2, 18, 2$ 이고, 그중 최소값은 $2$이다.</p></li>\n  </ul>\n  <p>따라서 정답은 $2$ 이다.</p>\n</div>",
+      "human_review": "UNVERIFIED"
+    },
+    "fixed": {
+      "type": "short_answer",
+      "question": "<div class=\"question\"><p>$x$ 에 대한 이차방정식 $x^2 - 6(a-b)x + 9(a+b)^2 - 37ab + 6a + 4b - 17 = 0$ 이 중근을 갖도록 하는 정수 $a, b$ 에 대하여 $a+b$ 의 값 중에서 가장 작은 값을 구하시오.</p></div>",
+      "refer": null,
+      "choice1": null,
+      "choice2": null,
+      "choice3": null,
+      "choice4": null,
+      "choice5": null,
+      "answer": "$2$",
+      "solution": "<div class=\"solution\"><p>이차방정식이 중근을 가지기 위한 조건은 판별식 $D$가 $0$이 되는 것이다.</p><p>$\\cfrac{D}{4} = \\{3(a-b)\\}^2 - \\{9(a+b)^2 - 37ab + 6a + 4b - 17\\} = 0$</p><p>$9(a^2 - 2ab + b^2) - 9(a^2 + 2ab + b^2) + 37ab - 6a - 4b + 17 = 0$</p><p>$-18ab - 18ab + 37ab - 6a - 4b + 17 = 0$</p><p>$ab - 6a - 4b + 17 = 0$</p><p>이 식을 인수분해하기 위해 변형하면</p><p>$(a-4)(b-6) - 24 + 17 = 0$</p><p>$(a-4)(b-6) = 7$</p><p>$a, b$가 정수이므로 $a-4$와 $b-6$은 $7$의 약수이다. 가능한 순서쌍 $(a-4, b-6)$은 다음과 같다.</p><div>1) $a-4=1, b-6=7 \\Rightarrow a=5, b=13$ 이므로 $a+b=18$</div><div>2) $a-4=7, b-6=1 \\Rightarrow a=11, b=7$ 이므로 $a+b=18$</div><div>3) $a-4=-1, b-6=-7 \\Rightarrow a=3, b=-1$ 이므로 $a+b=2$</div><div>4) $a-4=-7, b-6=-1 \\Rightarrow a=-3, b=5$ 이므로 $a+b=2$</div><p>따라서 $a+b$의 값 중 가장 작은 값은 $2$이다.</p><p>따라서 정답은 $2$ 이다.</p></div>"
+    }
+  },
+  {
+    "original_id": 947263,
+    "original": {
+      "id": 947263,
+      "group_id": 900332,
+      "type": "short_answer",
+      "question": "<div class='question'><p>[서술형6] 이차함수 \\(\\displaystyle f(x) = x^2 - 2mx + 2m^2 + 8m + 3\\) 의 최소값을 \\(\\displaystyle g(m)\\) 이라고 하자. \\(\\displaystyle m\\) 의 값의 범위가 \\(\\displaystyle -5 \\leq m \\leq 2\\) 일 때, \\(\\displaystyle g(m)\\) 의 최댓값을 \\(\\displaystyle a\\), 최솟값을 \\(\\displaystyle b\\) 라 할 때, \\(\\displaystyle a+b\\) 의 값을 구하는 풀이 과정과 답을 쓰시오. [8점]</p></div>",
+      "refer": null,
+      "choice1": null,
+      "choice2": null,
+      "choice3": null,
+      "choice4": null,
+      "choice5": null,
+      "answer": "10",
+      "solution": "<div class='solution'>\n<p>이차함수 <span>$f(x)=x^2-2mx+2m^2+8m+3$</span> 의 최소값을 구한다.</p>\n<p>함수 계수가 양수이므로 꼭짓점에서 최소값을 가진다.</p>\n<p>미분하면 <span>$2x-2m=0$</span> 이 되고 <span>$x=m$</span> 이다.</p>\n<p>따라서 <span>$g(m)=f(m)=m^2+8m+3$</span> 이다.</p>\n<p><span>$g(m)$</span> 은 위로 볼록이므로 닫힌구간 <span>$[-5,2]$</span> 에서 최소값과 최대값을 가진다.</p>\n<p>완전제곱식으로 나타내면 <span>$g(m)=(m+4)^2-13$</span> 이다.</p>\n<p>최소값은 <span>$-13$</span> 이며 <span>$m=-4$</span> 에서 발생한다.</p>\n<p>구간 끝점에서 최대값을 구하면 <span>$g(-5)=-12$</span>, <span>$g(2)=23$</span> 이다.</p>\n<p>따라서 정답은 <span>$10$</span> 이다.</p>\n</div>",
+      "human_review": "UNVERIFIED"
+    },
+    "fixed": {
+      "type": "short_answer",
+      "question": "<div class=\"question\"><p>이차함수 $f(x) = x^2 - 2mx + 2m^2 + 8m + 3$의 최솟값을 $g(m)$이라고 하자. $m$의 값의 범위가 $-5 \\leq m \\leq 2$일 때, $g(m)$의 최댓값을 $a$, 최솟값을 $b$라 할 때, $a+b$의 값을 구하시오. </p></div>",
+      "refer": null,
+      "choice1": null,
+      "choice2": null,
+      "choice3": null,
+      "choice4": null,
+      "choice5": null,
+      "answer": "$10$",
+      "solution": "<div class=\"solution\"><div><p>이차함수 $f(x) = x^2 - 2mx + 2m^2 + 8m + 3$를 표준형으로 변형하면</p><p>$f(x) = (x-m)^2 + m^2 + 8m + 3$</p><p>따라서 $f(x)$의 최솟값 $g(m)$은 $g(m) = m^2 + 8m + 3$이다.</p></div><div><p>$-5 \\leq m \\leq 2$에서 $g(m)$의 최댓값과 최솟값을 구하기 위해 $g(m)$을 표준형으로 변형하면</p><p>$g(m) = (m+4)^2 - 13$</p><p>이차함수 $g(m)$의 그래프는 아래로 볼록하고 축의 방정식이 $m = -4$이다.</p><p>구간 $-5 \\leq m \\leq 2$에서</p><ol><li>$m = -4$일 때 최솟값 $b = g(-4) = -13$을 갖는다.</li><li>$m = 2$일 때 최댓값 $a = g(2) = 2^2 + 8(2) + 3 = 23$을 갖는다.</li></ol><p>따라서 $a + b = 23 + (-13) = 10$이다.</p></div><p>따라서 정답은 $10$ 이다.</p></div>"
+    }
+  },
+  {
+    "original_id": 947264,
+    "original": {
+      "id": 947264,
+      "group_id": 900333,
+      "type": "short_answer",
+      "question": "<div class='question'><p>[서술형7] 두 다항식 \\(\\displaystyle p(x), q(x)\\) 에 대하여<br> \\(\\displaystyle p(x) + q(x)\\) 를 \\(\\displaystyle 2x^2 - x + 1\\) 로 나누었을 때의 나머지가 5이고, <br>\\(\\displaystyle p(x) - q(x)\\) 를 \\(\\displaystyle 2x^2 - x + 1\\) 로 나누었을 때의 나머지가 -1이다. <br>이때 \\(\\displaystyle p(x) + kq(x)\\) 가 \\(\\displaystyle 2x^2 - x + 1\\) 을 인수로 갖도록 하는 상수 \\(\\displaystyle k\\) 의 값을 구하는 풀이 과정과 답을 쓰시오. [12점]</p></div>",
+      "refer": null,
+      "choice1": null,
+      "choice2": null,
+      "choice3": null,
+      "choice4": null,
+      "choice5": null,
+      "answer": "<p>$-\\frac{2}{3}$</p>",
+      "solution": "<div class='solution'>\n  \n  <p>다항식 $p(x), q(x)$를 $D(x)=2x^2 - x +1$로 나눌 때의 나머지를 각각 $A(x), B(x)$라 하자.</p>\n  <p>이 나머지는 차수가 2 미만이므로 상수 또는 1차 다항식이다.</p>\n  <p>$p(x)+q(x)$의 나머지는 $A(x)+B(x)=5$이고, $p(x)-q(x)$의 나머지는 $A(x)-B(x)=-1$이다.</p>\n  <p>$2A(x)=4$가 되어 $A(x)=2$이고, 빼면 $2B(x)=6$이 되어 $B(x)=3$이다.</p>\n  <p>$p(x)+kq(x)$의 나머지는 $A(x)+kB(x)=2+3k$가 된다.</p>\n  <p>나머지가 $0$이 되면 $D(x)$를 인수로 갖는다.</p>\n  <p>따라서 정답은 $\n\\cfrac{-2}{3}$ 이다.</p>\n</div>",
+      "human_review": "UNVERIFIED"
+    },
+    "fixed": {
+      "type": "short_answer",
+      "question": "<div class=\"question\"><p>두 다항식 $p(x)$, $q(x)$에 대하여 $p(x) + q(x)$를 $2x^2 - x + 1$로 나누었을 때의 나머지가 $5$이고, $p(x) - q(x)$를 $2x^2 - x + 1$로 나누었을 때의 나머지가 $-1$이다. 이때 $p(x) + kq(x)$가 $2x^2 - x + 1$을 인수로 갖도록 하는 상수 $k$의 값을 구하시오.</p></div>",
+      "refer": null,
+      "choice1": null,
+      "choice2": null,
+      "choice3": null,
+      "choice4": null,
+      "choice5": null,
+      "answer": "$-\\cfrac{2}{3}$",
+      "solution": "<div class=\"solution\"><div><p>다항식 $p(x)$, $q(x)$를 $2x^2 - x + 1$로 나누었을 때의 나머지를 각각 $R_1(x)$, $R_2(x)$라 하자.</p><p>나머지 정리의 성질에 의해 다음과 같은 식을 세울 수 있다.</p><ol><li>$R_1(x) + R_2(x) = 5$</li><li>$R_1(x) - R_2(x) = -1$</li></ol><p>위의 두 식을 연립하여 풀면,</p><p>두 식을 더하면 $2R_1(x) = 4$이므로 $R_1(x) = 2$이다.</p><p>두 식을 빼면 $2R_2(x) = 6$이므로 $R_2(x) = 3$이다.</p><p>$p(x) + kq(x)$를 $2x^2 - x + 1$로 나누었을 때의 나머지는 $R_1(x) + kR_2(x)$이므로,</p><p>$2 + 3k$가 된다.</p><p>$p(x) + kq(x)$가 $2x^2 - x + 1$을 인수로 가지려면 나머지가 $0$이어야 하므로,</p><p>$2 + 3k = 0$</p><p>$3k = -2$</p><p>$k = -\\cfrac{2}{3}$</p><p>따라서 정답은 $-\\cfrac{2}{3}$ 이다.</p></div></div>"
+    }
+  },
+  {
+    "original_id": 947270,
+    "original": {
+      "id": 947270,
+      "group_id": 900339,
+      "type": "multiple_choice",
+      "question": "<div class='question'><p>pH는 수소이온 농도 \\(\\displaystyle [H^+]\\) 의 지수를 나타낸 것으로 0에서 14까지 측정된다. pH = \\(\\displaystyle -\\log[H^+]\\) 로 정의한다. 오렌지를 먹은 직후 타액(침)의 pH는 5.8이었고, 오렌지를 먹은 30분 뒤의 타액의 수소이온 농도 \\(\\displaystyle [H^+]\\) 는 먹은 직후에 비해 5배 감소하였다. 이때, 오렌지를 먹은 30분 뒤의 타액의 pH는? (단, \\(\\displaystyle \\log 2 = 0.3010\\) 으로 계산한다.) [3.7점]</p></div>",
+      "refer": null,
+      "choice1": "<p>2.4990</p>",
+      "choice2": "<p>3.4990</p>",
+      "choice3": "<p>4.4990</p>",
+      "choice4": "<p>5.4990</p>",
+      "choice5": "<p>6.4990</p>",
+      "answer": "5",
+      "solution": "<div class='solution'>\n  \n  <ul><li><p>오렌지를 먹은 직후의 수소이온 농도는 $[H^+]_1 = 10^{-5.8}$이다.</p></li><li><p>30분 뒤의 수소이온 농도는 $[H^+]_2 = \\cfrac{10^{-5.8}}{5}$이다.</p></li><li><p>오렌지를 먹은 30분 뒤의 pH는<br>$\\mathrm{pH}_2 = -\\log\\bigl([H^+]_2\\bigr) = -\\log\\Bigl(\\cfrac{10^{-5.8}}{5}\\Bigr) = 5.8 + \\log 5.$</p></li><li><p>$\\log 5 = \\log\\cfrac{10}{2} = 1 - \\log 2 = 1 - 0.3010 = 0.6990$ 이므로<br>$\\mathrm{pH}_2 = 5.8 + 0.6990 = 6.4990$</p></li>\n  </ul>\n  <p>따라서 정답은 6.4990 이다.</p>\n</div>",
+      "human_review": "UNVERIFIED"
+    },
+    "fixed": {
+      "type": "multiple_choice",
+      "question": "<div class=\"question\"><p>$pH$는 수소이온 농도 $[H^+]$의 지수를 나타낸 것으로 $0$에서 $14$까지 측정된다. $pH = -\\log[H^+]$로 정의한다. 오렌지를 먹은 직후 타액(침)의 $pH$는 $5.8$이었고, 오렌지를 먹은 $30$분 뒤의 타액의 수소이온 농도 $[H^+]$는 먹은 직후에 비해 $5$배 감소하였다. 이때, 오렌지를 먹은 $30$분 뒤의 타액의 $pH$는? (단, $\\log 2 = 0.3010$으로 계산한다.)</p></div>",
+      "refer": null,
+      "choice1": "$2.4990$",
+      "choice2": "$3.4990$",
+      "choice3": "$4.4990$",
+      "choice4": "$5.4990$",
+      "choice5": "$6.4990$",
+      "answer": "5",
+      "solution": "<div class=\"solution\"><div><p>오렌지를 먹은 직후의 수소이온 농도를 $[H^+]_1$이라 하면 $5.8 = -\\log[H^+]_1$에서 $[H^+]_1 = 10^{-5.8}$이다.</p><p>오렌지를 먹은 $30$분 뒤의 수소이온 농도를 $[H^+]_2$라 하면, 농도가 $5$배 감소하였으므로 $[H^+]_2 = \\cfrac{1}{5}[H^+]_1 = \\cfrac{10^{-5.8}}{5}$이다.</p><p>따라서 $30$분 뒤의 $pH$는 다음과 같다.</p><p>$\\displaystyle pH_2 = -\\log[H^+]_2 = -\\log\\left(\\cfrac{10^{-5.8}}{5}\\right)$</p><p>$\\displaystyle = -(\\log 10^{-5.8} - \\log 5) = 5.8 + \\log 5$</p><p>이때 $\\log 5 = \\log\\left(\\cfrac{10}{2}\\right) = 1 - \\log 2 = 1 - 0.3010 = 0.6990$이므로</p><p>$\\displaystyle pH_2 = 5.8 + 0.6990 = 6.4990$</p><p>따라서 정답은 ⑤ $6.4990$ 이다.</p></div></div>"
+    }
+  }
+]

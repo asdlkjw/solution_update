@@ -1,0 +1,856 @@
+#!/usr/bin/env python3
+import os
+import sys
+import json
+import argparse
+import csv
+import pymysql
+import pymysql.cursors
+import requests
+from dotenv import load_dotenv
+from pathlib import Path
+from typing import List, Dict, Any, Literal
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=env_path)
+
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+DB_HOST = os.getenv("DB_HOST")
+DB_PORT = os.getenv("DB_PROD_PORT")
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PROD_PASSWORD")
+DB_NAME = os.getenv("DB_NAME")
+
+MODEL_NAME = "google/gemini-3-flash-preview"
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+
+
+def read_group_ids_from_csv(csv_path: str) -> List[int]:
+    # CSV 파일에서 group_id 목록을 읽어옵니다.
+    group_ids = []
+    try:
+        with open(csv_path, "r", encoding="utf-8") as f:
+            reader = csv.reader(f)
+            for row in reader:
+                if row:  # 빈 줄 무시
+                    group_ids.append(int(row[0].strip()))
+        return group_ids
+    except FileNotFoundError:
+        print(f"Error: CSV file not found at {csv_path}", file=sys.stderr)
+        sys.exit(1)
+    except ValueError as e:
+        print(f"Error parsing CSV file: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def get_db_connection():
+    # 데이터베이스 연결을 생성합니다.
+    try:
+        conn = pymysql.connect(
+            host=DB_HOST,
+            port=int(DB_PORT) if DB_PORT else 3306,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            database=DB_NAME,
+            cursorclass=pymysql.cursors.DictCursor,
+        )
+        return conn
+    except Exception as e:
+        print(f"Error connecting to database: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def fetch_problems(
+    ids: List[int] | None = None,
+    group_ids: List[int] | None = None,
+    mode: Literal["id", "group_id"] = "id",
+) -> List[Dict[str, Any]]:
+    # ID 또는 group_id 리스트에 해당하는 문제 데이터를 가져옵니다.
+    conn = get_db_connection()
+    # Connection 객체 생성 시 cursorclass를 지정했으므로 여기서는 그냥 cursor() 호출
+    cursor = conn.cursor()
+
+    # 식별을 위해 id 컬럼은 필수로 포함하고, 나머지는 요청된 컬럼만 조회
+    cols = "id, group_id, type, question, refer, choice1, choice2, choice3, choice4, choice5, answer, solution, human_review"
+
+    try:
+        if mode == "id":
+            # ID 기반 조회
+            if ids is None or len(ids) == 0:
+                return []
+            if len(ids) == 1:
+                query = f"SELECT {cols} FROM problem WHERE id = %s"
+                cursor.execute(query, (ids[0],))
+            else:
+                # pymysql에서 IN 절 처리를 위해 %s 사용 및 튜플 전달
+                format_strings = ",".join(["%s"] * len(ids))
+                query = f"SELECT {cols} FROM problem WHERE id IN ({format_strings})"
+                cursor.execute(query, tuple(ids))
+        elif mode == "group_id":
+            # group_id 기반 조회
+            if group_ids is None or len(group_ids) == 0:
+                return []
+            if len(group_ids) == 1:
+                query = f"SELECT {cols} FROM problem WHERE group_id = %s"
+                cursor.execute(query, (group_ids[0],))
+            else:
+                # pymysql에서 IN 절 처리를 위해 %s 사용 및 튜플 전달
+                format_strings = ",".join(["%s"] * len(group_ids))
+                query = (
+                    f"SELECT {cols} FROM problem WHERE group_id IN ({format_strings})"
+                )
+                cursor.execute(query, tuple(group_ids))
+
+        rows = cursor.fetchall()
+        return rows  # pymysql DictCursor returns list of dicts directly
+    except Exception as e:
+        print(f"Error fetching data: {e}", file=sys.stderr)
+        return []
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def fix_content_with_llm(problem_data: Dict[str, Any]) -> Dict[str, Any]:
+    # OpenRouter Gemini 모델을 사용하여 문제 내용을 수정합니다.
+
+    # LLM 입력용 필드 필터링
+    target_fields = [
+        "type",
+        "question",
+        "refer",
+        "choice1",
+        "choice2",
+        "choice3",
+        "choice4",
+        "choice5",
+        "answer",
+        "solution",
+    ]
+    # DB에서 가져온 데이터 중 target_fields에 해당하는 것만 추출
+    filtered_input = {k: problem_data.get(k) for k in target_fields}
+
+    serialized_data = json.loads(json.dumps(filtered_input, default=str))
+
+    prompt = f"""
+You are an expert math problem editor. Your task is to fix all formatting errors, typos, and LaTeX issues in the provided math problem data.
+
+## Task Overview
+Fix the following fields in the JSON data:
+- type, question, refer, choice1, choice2, choice3, choice4, choice5, answer, solution
+
+The data contains HTML + LaTeX content. Transform it into well-structured HTML for human readability while ensuring all math expressions use proper LaTeX delimiters ($...$).
+
+## IMPORTANT: HTML Structure Rules for Human Readability
+Transform content into well-structured HTML with proper wrapping:
+
+1. **Sentence-level wrapping**: Wrap individual sentences with `<p>` tags
+2. **Paragraph-level wrapping**: Wrap paragraphs with `<div>` tags
+3. **List formatting**: Format "보기" (choices/examples) as `<ol><li>` lists
+4. **Field-specific class names** - Apply these class attributes:
+   - question field: Wrap the entire content with `<div class='question'>...</div>`
+   - refer field: Wrap the entire content with `<div class='reference'>...</div>`
+   - Each choice (choice1~5): Wrap with `<div class='choice'>...</div>`
+   - answer field: Wrap with `<div class='answer'>...</div>`
+   - solution field: Wrap with `<div class='solution'>...</div>`
+
+Example output structure:
+- question: `<div class='question'><p>Problem text with $x^2$...</p><p>Next sentence...</p></div>`
+- refer: `<div class='reference'><ol><li>First item</li><li>Second item</li></ol></div>`
+- choice1: `<div class='choice'>$a^2 + b^2$</div>`
+
+## Error Definitions & Fixes
+
+1. **type correction**:
+   - "객관식" (objective) → "multiple_choice"
+   - "주관식" (subjective) → "short_answer"
+
+2. **LaTeX fraction & displaystyle issues**:
+   - Change small \\frac to \\cfrac for better readability.
+   - Add \\displaystyle before \\int, \\sum, \\prod, \\lim, etc. when not present.
+   - For inline subscripts/superscripts like _{{}}, ^{{}}, use \\tfrac or \\frac instead of \\cfrac to keep them small.
+
+3. **Remove scoring information**: Remove any point/score references from question and refer (e.g., [4점], (3.5점), 등).
+
+4. **Add missing math delimiters**: Wrap math expressions, numbers, English letters, and symbols with $...$ if not already delimited.
+   - Examples: a → $a$, 2 → $2$, x → $x$
+
+5. **Clean up refer field**:
+   - If refer contains non-[보기] (not example choices) information, move it to question.
+   - If refer is completely irrelevant to the problem, remove it.
+   - **IMPORTANT**: Check if original refer has counter symbols (1., 2., 3., ㉠, ㉡, etc.).
+     - If counter symbols exist, format as <ol><li> list.
+     - If NO counter symbols exist, use <p> tags for each option instead.
+
+6. **Fix incomplete problems**: If the problem itself has errors (missing parts), predict and complete it logically.
+
+7. **Correct answer and solution**: Recalculate and provide the correct answer and solution while maintaining the existing writing style.
+
+8. **Fix spacing**: Correct any incorrect spacing (띄어쓰기) issues.
+
+9. **Translate English math terms**: Convert English abbreviations to Korean appropriate for students.
+   - gcd → 최대공약수, lcm → 최소공배수, etc.
+
+10. **Simplify explanations in solution**: Remove college-level concepts or overly advanced methods. Use middle/high school level explanations.
+    - Example: Instead of "가우스 법칙을 사용한다", use appropriate middle/high school methods.
+
+11. **Deduplicate choices**: If question/refer/choice fields have duplicate content (especially choices), move choices from question/refer to choice1~5 fields.
+
+12. **Remove orphaned subproblem labels**: If only (1), (2), etc. appear as a subproblem marker with no other subproblems, simplify by removing the label and keeping just the expression.
+    - Example: (1) $\sqrt{{3}}^5 + 2$ → $\sqrt{{3}}^5 + 2$
+
+13. **Remove problem type labels**: Remove [서술형], [주관식1], 주관식 [1~4], etc. from question.
+
+14. **Fix plain text fractions**: Convert 1/2 style to \cfrac{{1}}{{2}}.
+
+15. **Convert non-LaTeX math tags**: Replace <math>...</math> with $...$.
+    - Example: <math>2</math> → $2$
+
+16. **Remove duplicate sentences**: Remove redundant duplicate sentences.
+    - Example: "답은 $135$이다. 따라서 답은 ④ $135$이다." → "따라서 답은 ④ $135$이다."
+
+17. **Fix typos**: Correct any typos.
+
+18. **Consistent writing style**: Ensure consistent ending style (use "~다" instead of "~입니다", etc.).
+
+## CRITICAL: HTML Formatting Rules
+
+1. **NEVER escape HTML tags**: All HTML tags must be written as normal HTML, NOT escaped.
+   - Use normal HTML: <p>, </p>, <div>, </div>, <ol>, </ol>, <li>, </li>
+   - NEVER use escaped versions like \\/p>, \\/div>, \\/li>, etc.
+   - NEVER add backslashes before HTML tags
+
+2. **MathJax delimiters supported**:
+   - Inline: $x^2$, \\(x^2\\), \\(x^2\\)
+   - Display: $$x^2$$, \\[x^2\\]
+   - All three styles work, choose appropriate one
+
+3. **HTML structure examples** (these are correct - copy this style):
+   <div class='question'><p>다음 식의 값을 구하시오.</p><p>$$\\displaystyle\\int_0^1 x dx$$</p></div>
+   <div class='reference'><ol><li>$a^2$</li><li>$2ab$</li></ol></div>
+   <div class='choice'><p>① $a^2 + b^2$</p></div>
+   <div class='answer'><p>② $2ab$</p></div>
+   <div class='solution'><p><strong>해설:</strong></p><p>$$(a+b)^2 = a^2 + 2ab + b^2$$</p></div>
+
+## Input Data
+{json.dumps(serialized_data, indent=2, ensure_ascii=False)}
+
+Return corrected JSON. All HTML must be properly formatted WITHOUT any escape characters.
+
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://github.com/code-yeongyu/sisyphus",
+        "X-Title": "Problem Fix Script",
+    }
+
+    json_schema = {
+        "type": "object",
+        "properties": {
+            "type": {"type": "string", "enum": ["multiple_choice", "short_answer"]},
+            "question": {"type": "string"},
+            "refer": {"type": ["string", "null"]},
+            "choice1": {"type": ["string", "null"]},
+            "choice2": {"type": ["string", "null"]},
+            "choice3": {"type": ["string", "null"]},
+            "choice4": {"type": ["string", "null"]},
+            "choice5": {"type": ["string", "null"]},
+            "answer": {"type": "string"},
+            "solution": {"type": ["string", "null"]},
+        },
+        "required": [
+            "type",
+            "question",
+            "refer",
+            "choice1",
+            "choice2",
+            "choice3",
+            "choice4",
+            "choice5",
+            "answer",
+            "solution",
+        ],
+        "additionalProperties": False,
+    }
+
+    payload = {
+        "model": MODEL_NAME,
+        "messages": [{"role": "user", "content": prompt}],
+        "response_format": {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "math_problem_correction",
+                "strict": True,
+                "schema": json_schema,
+            },
+        },
+    }
+
+    try:
+        response = requests.post(
+            OPENROUTER_URL, headers=headers, json=payload, timeout=60
+        )
+        response.raise_for_status()
+        result = response.json()
+
+        content = result["choices"][0]["message"]["content"]
+        return json.loads(content)
+    except Exception as e:
+        print(
+            f"Error calling LLM for ID {problem_data.get('id')}: {e}", file=sys.stderr
+        )
+        return {"error": str(e), "original_id": problem_data.get("id")}
+
+
+def process_single_problem(problem: Dict[str, Any]) -> Dict[str, Any]:
+    # 단일 문제 처리를 위한 래퍼 함수 (병렬 실행용)
+    print(f"Processing ID: {problem.get('id')}...")
+    fixed_data = fix_content_with_llm(problem)
+    return {
+        "original_id": problem.get("id"),
+        "original": json.loads(json.dumps(problem, default=str)),
+        "fixed": fixed_data,
+    }
+
+
+def generate_html_report(results: List[Dict[str, Any]], output_path: Path):
+    # 결과 데이터를 HTML 리포트로 저장합니다.
+    html_content = """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sisyphus Reviewer // Paginated</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Syncopate:wght@700&display=swap" rel="stylesheet">
+    <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: false
+      }
+    };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #121218;
+            --text-primary: #e0e0e0;
+            --text-secondary: #888899;
+            --accent-color: #00d4ff;
+            --diff-color: #ff9d00;
+            --border-color: #2a2a35;
+            --grid-color: rgba(42, 42, 53, 0.3);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'IBM Plex Mono', monospace;
+            background-image: 
+                linear-gradient(var(--grid-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+            background-size: 20px 20px;
+            overflow: hidden;
+        }
+
+        header {
+            padding: 15px 20px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        h1 {
+            font-family: 'Syncopate', sans-serif;
+            font-size: 1.1rem;
+            margin: 0;
+            color: var(--accent-color);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .btn {
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid var(--accent-color);
+            color: var(--accent-color);
+            padding: 8px 16px;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .btn:hover {
+            background: var(--accent-color);
+            color: #000;
+        }
+
+        .btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            border-color: var(--text-secondary);
+            color: var(--text-secondary);
+            background: transparent;
+        }
+
+        .page-indicator {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            min-width: 150px;
+            text-align: center;
+        }
+
+        /* Main Content */
+        #app {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        .panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 10px 15px;
+            background: rgba(0,0,0,0.2);
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .panel-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        /* JSON Styling */
+        .key { color: var(--text-secondary); }
+        .string { color: #a5d6ff; }
+        .number { color: #ff7b72; }
+        .boolean { color: #79c0ff; }
+        .null { color: #79c0ff; }
+
+        .diff {
+            outline: 1px dashed var(--diff-color);
+            background: rgba(255, 157, 0, 0.1);
+            position: relative;
+        }
+        
+        .diff::after {
+            content: "MODIFIED";
+            position: absolute;
+            right: 0;
+            top: 0;
+            font-size: 0.6rem;
+            background: var(--diff-color);
+            color: #000;
+            padding: 0 4px;
+            pointer-events: none;
+        }
+
+        /* Image Handling */
+        .preview-img {
+            max-width: 30px;
+            max-height: 30px;
+            vertical-align: middle;
+            border: 1px solid var(--border-color);
+            cursor: zoom-in;
+            margin: 0 4px;
+            transition: transform 0.2s;
+        }
+
+        /* Field Styling for MathJax Rendering */
+        .field-wrapper {
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .field-wrapper:last-child {
+            border-bottom: none;
+        }
+
+        .field-label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        .field-content {
+            font-size: 0.95rem;
+            line-height: 1.8;
+            padding-left: 10px;
+        }
+
+        .field-type {
+            background: rgba(0, 212, 255, 0.1);
+            padding: 6px 10px;
+            border-radius: 3px;
+        }
+
+        .field-question {
+            padding: 8px 0;
+        }
+
+        .field-refer {
+            padding: 8px 0;
+        }
+
+        .field-choice {
+            padding: 6px 0;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 3px;
+            margin: 4px 0;
+            padding: 6px 10px;
+        }
+
+        .field-answer {
+            font-weight: bold;
+            color: var(--accent-color);
+            padding: 8px 0;
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .field-solution {
+            padding: 10px 0;
+            background: rgba(0, 0, 0, 0.15);
+            border-radius: 3px;
+            padding: 10px;
+        }
+
+        /* MathJax Container Styling */
+        .field-content mjx-container {
+            font-size: 110% !important;
+        }
+
+        .preview-img:hover {
+            transform: scale(8);
+            z-index: 1000;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            border: 1px solid var(--accent-color);
+            background: #000;
+        }
+        
+        .id-badge {
+            background: var(--accent-color);
+            color: #000;
+            padding: 2px 6px;
+            border-radius: 2px;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-primary); }
+        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Sisyphus Reviewer</h1>
+        <div class="controls">
+            <button id="btn-prev" class="btn" onclick="prevPage()">← Prev</button>
+            <span id="page-indicator" class="page-indicator">Loading...</span>
+            <button id="btn-next" class="btn" onclick="nextPage()">Next →</button>
+        </div>
+    </header>
+    
+    <div id="app">
+        <!-- Panels injected by JS -->
+    </div>
+
+    <script>
+        // DATA INJECTION POINT
+        const DATA = __JSON_DATA_PLACEHOLDER__;
+        
+        let currentIndex = 0;
+
+        function isImageUrl(str) {
+            return (typeof str === 'string' && (str.match(/\\.(jpeg|jpg|gif|png|webp)$/i) != null || str.includes('<img')));
+        }
+        
+        function extractImgSrc(str) {
+             const match = str.match(/src=["'](.*?)["']/);
+             return match ? match[1] : str;
+        }
+
+        function renderValue(key, val, otherVal) {
+            const isDiff = JSON.stringify(val) !== JSON.stringify(otherVal);
+            const diffClass = isDiff ? 'diff' : '';
+            
+            if (val === null) return `<span class="null ${diffClass}">null</span>`;
+            if (typeof val === 'boolean') return `<span class="boolean ${diffClass}">${val}</span>`;
+            if (typeof val === 'number') return `<span class="number ${diffClass}">${val}</span>`;
+            
+            if (typeof val === 'string') {
+                if (isImageUrl(val)) {
+                    let src = val;
+                    if (val.includes('<img')) src = extractImgSrc(val);
+                    return `<span class="string ${diffClass}">
+                        "${val.substring(0, 50)}..." <img src="${src}" class="preview-img" title="Click to open">
+                    </span>`;
+                }
+                // Escape HTML
+                const safeStr = val.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+                return `<span class="string ${diffClass}">"${safeStr}"</span>`;
+            }
+            
+            if (Array.isArray(val)) {
+                if (val.length === 0) return '[]';
+                let html = '[<div style="padding-left: 20px;">';
+                val.forEach((item, i) => {
+                    html += renderValue(i, item, otherVal ? otherVal[i] : undefined) + (i < val.length - 1 ? ',' : '') + '<br>';
+                });
+                html += ']</div>';
+                return html;
+            }
+            
+            if (typeof val === 'object') {
+                if (Object.keys(val).length === 0) return '{}';
+                let html = '{<div style="padding-left: 20px;">';
+                Object.keys(val).forEach((k, i, keys) => {
+                    const v = val[k];
+                    const ov = otherVal ? otherVal[k] : undefined;
+                    html += `<span class="key">"${k}"</span>: ${renderValue(k, v, ov)}${i < keys.length - 1 ? ',' : ''}<br>`;
+                });
+                html += '}</div>';
+                return html;
+            }
+            
+            return val;
+        }
+
+        function renderField(data, field, label, customClass) {
+            const value = data[field];
+            if (value === null || value === undefined) return '';
+            return `
+                <div class="field-wrapper ${customClass || ''}">
+                    <div class="field-label">${label}</div>
+                    <div class="field-content">${value}</div>
+                </div>
+            `;
+        }
+
+        function renderPanel(data, title, badge) {
+            const fields = [
+                { field: 'type', label: 'TYPE', class: 'field-type' },
+                { field: 'question', label: 'QUESTION', class: 'field-question' },
+                { field: 'refer', label: 'REFER', class: 'field-refer' },
+                { field: 'choice1', label: 'CHOICE 1', class: 'field-choice' },
+                { field: 'choice2', label: 'CHOICE 2', class: 'field-choice' },
+                { field: 'choice3', label: 'CHOICE 3', class: 'field-choice' },
+                { field: 'choice4', label: 'CHOICE 4', class: 'field-choice' },
+                { field: 'choice5', label: 'CHOICE 5', class: 'field-choice' },
+                { field: 'answer', label: 'ANSWER', class: 'field-answer' },
+                { field: 'solution', label: 'SOLUTION', class: 'field-solution' }
+            ];
+
+            let html = fields.map(f => renderField(data, f.field, f.label, f.class)).join('');
+
+            return `
+                <div class="panel">
+                    <div class="panel-header">
+                        <span>${title}</span>
+                        <span class="id-badge">${badge}</span>
+                    </div>
+                    <div class="panel-content">
+                        ${html}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderPage() {
+            if (!DATA || DATA.length === 0) {
+                document.getElementById('app').innerHTML = '<div style="margin:auto">No Data Loaded</div>';
+                return;
+            }
+
+            const item = DATA[currentIndex];
+            const app = document.getElementById('app');
+
+            // Update controls
+            document.getElementById('page-indicator').innerText = `Problem ${currentIndex + 1} of ${DATA.length} (ID: ${item.original_id})`;
+            document.getElementById('btn-prev').disabled = currentIndex === 0;
+            document.getElementById('btn-next').disabled = currentIndex === DATA.length - 1;
+
+            // Render Panels with HTML content
+            app.innerHTML = `
+                ${renderPanel(item.original, 'ORIGINAL DATA', `ID: ${item.original_id}`)}
+                ${renderPanel(item.fixed, 'FIXED DATA (LLM)', 'GEMINI 2.0')}
+            `;
+
+            // Trigger MathJax rendering
+            if (window.MathJax && window.MathJax.typesetPromise) {
+                window.MathJax.typesetPromise([document.getElementById('app')]).catch(err => console.error('MathJax error:', err));
+            }
+        }
+
+        function prevPage() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                renderPage();
+            }
+        }
+
+        function nextPage() {
+            if (currentIndex < DATA.length - 1) {
+                currentIndex++;
+                renderPage();
+            }
+        }
+
+        // Keyboard Navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') prevPage();
+            if (e.key === 'ArrowRight') nextPage();
+        });
+
+        // Initialize
+        renderPage();
+    </script>
+</body>
+</html>"""
+
+    # JSON 데이터를 JS 변수로 주입
+    json_str = json.dumps(results, ensure_ascii=False)
+    final_html = html_content.replace("__JSON_DATA_PLACEHOLDER__", json_str)
+
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(final_html)
+
+    print(f"Generated HTML Report: {output_path}")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Fix math problems using Gemini 2.0 Flash"
+    )
+    parser.add_argument(
+        "--ids",
+        type=str,
+        required=False,
+        help="Comma-separated list of problem IDs (e.g., 101,102,103)",
+    )
+    parser.add_argument(
+        "--group-ids",
+        type=str,
+        required=False,
+        help="Path to CSV file containing group_ids",
+    )
+    parser.add_argument(
+        "--output", type=str, default="fixed_results.json", help="Output JSON file path"
+    )
+
+    args = parser.parse_args()
+
+    # 최소 하나의 파라미터는 필수
+    if not args.ids and not args.group_ids:
+        print("Error: Either --ids or --group-ids must be provided.", file=sys.stderr)
+        sys.exit(1)
+
+    # 두 파라미터 중 하나만 사용
+    if args.ids and args.group_ids:
+        print("Error: Cannot use both --ids and --group-ids together.", file=sys.stderr)
+        sys.exit(1)
+
+    # 파라미터에 따라 조회 모드 결정
+    if args.ids:
+        try:
+            ids = [int(x.strip()) for x in args.ids.split(",")]
+        except ValueError:
+            print("Error: IDs must be integers.", file=sys.stderr)
+            sys.exit(1)
+
+        print(f"Fetching {len(ids)} problems from DB by IDs...")
+        problems = fetch_problems(ids=ids, mode="id")
+    else:
+        # group_ids CSV 파일 처리
+        csv_path = Path(args.group_ids)
+        if not csv_path.exists():
+            print(f"Error: CSV file not found at {csv_path}", file=sys.stderr)
+            sys.exit(1)
+
+        group_ids = read_group_ids_from_csv(str(csv_path))
+        print(f"Fetching {len(group_ids)} groups from DB by group_ids...")
+        problems = fetch_problems(group_ids=group_ids, mode="group_id")
+
+    if not problems:
+        print("No problems found.", file=sys.stderr)
+        sys.exit(1)
+
+    results = []
+    print(f"Processing {len(problems)} items with {MODEL_NAME} (Parallel x32)...")
+
+    # ThreadPoolExecutor를 사용한 병렬 처리
+    with ThreadPoolExecutor(max_workers=32) as executor:
+        future_to_id = {
+            executor.submit(process_single_problem, p): p["id"] for p in problems
+        }
+
+        for future in as_completed(future_to_id):
+            p_id = future_to_id[future]
+            try:
+                data = future.result()
+                results.append(data)
+            except Exception as exc:
+                print(f"Problem {p_id} generated an exception: {exc}", file=sys.stderr)
+
+    # 결과 정렬 (ID 순)
+    results.sort(key=lambda x: x["original_id"])
+
+    output_path = Path(__file__).parent / args.output
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(results, f, indent=2, ensure_ascii=False)
+
+    print(f"Done. JSON Results saved to {output_path}")
+
+    # HTML 리포트 생성 (데이터 주입)
+    html_path = output_path.with_suffix(".html")
+    generate_html_report(results, html_path)
+
+
+if __name__ == "__main__":
+    main()
