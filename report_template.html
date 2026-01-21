@@ -403,6 +403,9 @@
 
             const item = DATA[currentIndex];
             const app = document.getElementById('app');
+            const groupId = item.original && item.original.group_id !== undefined && item.original.group_id !== null
+                ? item.original.group_id
+                : 'N/A';
 
             // Update controls
             document.getElementById('page-indicator').innerText = `Problem ${currentIndex + 1} of ${DATA.length} (ID: ${item.original_id})`;
@@ -411,7 +414,7 @@
 
             // Render Panels with HTML content
             app.innerHTML = `
-                ${renderPanel(item.original, 'ORIGINAL DATA', `ID: ${item.original_id}`)}
+                ${renderPanel(item.original, 'ORIGINAL DATA', `GROUP_ID: ${groupId}`)}
                 ${renderPanel(item.fixed, 'FIXED DATA (LLM)', 'GEMINI 3.0')}
             `;
 

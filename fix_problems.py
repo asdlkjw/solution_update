@@ -274,6 +274,30 @@ def unescape_html_tags(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
     return fixed_data
 
 
+def normalize_refer_view_header(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
+    question = fixed_data.get("question")
+    if not isinstance(question, str):
+        return fixed_data
+
+    if re.search(r"보\s*기", question):
+        return fixed_data
+
+    refer = fixed_data.get("refer")
+    if not isinstance(refer, str):
+        return fixed_data
+
+    patterns = [
+        r"<\s*p\s*>\s*(?:&lt;|<)\s*보\s*기\s*(?:&gt;|>)\s*</\s*p\s*>",
+        r"(?:&lt;|<)\s*보\s*기\s*(?:&gt;|>)",
+    ]
+
+    for pattern in patterns:
+        refer = re.sub(pattern, "", refer, flags=re.IGNORECASE)
+
+    fixed_data["refer"] = refer.strip()
+    return fixed_data
+
+
 def process_single_problem(problem: Dict[str, Any]) -> Dict[str, Any]:
     # 단일 문제 처리를 위한 래퍼 함수 (병렬 실행용)
     fixed_data = fix_content_with_llm(problem)
@@ -281,6 +305,7 @@ def process_single_problem(problem: Dict[str, Any]) -> Dict[str, Any]:
     # 후처리 로직 적용
     fixed_data = normalize_answer(fixed_data)
     fixed_data = unescape_html_tags(fixed_data)
+    fixed_data = normalize_refer_view_header(fixed_data)
     fixed_data = normalize_html_wrappers(fixed_data)
 
     return {
