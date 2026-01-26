@@ -709,17 +709,7 @@ def _auto_wrap_inline_math(text: str) -> str:
 
 def wrap_latex_content(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
     """LaTeX 수식이 $로 감싸지지 않은 경우 감쌉니다."""
-    target_fields = [
-        "choice1",
-        "choice2",
-        "choice3",
-        "choice4",
-        "choice5",
-        "answer",
-        "solution",
-        "question",
-        "refer",
-    ]
+    target_fields = ["choice1", "choice2", "choice3", "choice4", "choice5", "answer"]
 
     for field in target_fields:
         content = fixed_data.get(field)
