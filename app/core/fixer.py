@@ -325,6 +325,122 @@ def restore_field_div_classes(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
     return fixed_data
 
 
+def separate_image_div(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
+    """question, refer 필드의 div에서 <img>를 다른 콘텐츠와 분리"""
+    field_class_map = {
+        "question": "question",
+        "refer": "reference",
+    }
+
+    for field, class_name in field_class_map.items():
+        content = fixed_data.get(field)
+        if not content or not isinstance(content, str):
+            continue
+
+        # <div class="X" ...> 형태의 외부 div 매칭
+        div_pattern = (
+            r'(<div\s+[^>]*class\s*=\s*["\']'
+            + re.escape(class_name)
+            + r'["\'][^>]*>)(.*?)(</div>)'
+        )
+        match = re.search(div_pattern, content, re.DOTALL | re.IGNORECASE)
+
+        if not match:
+            continue
+
+        opening_tag = match.group(1)
+        inner_content = match.group(2)
+        closing_tag = match.group(3)
+
+        # 내부 콘텐츠를 top-level 요소로 파싱
+        segments = []
+        i = 0
+        depth = 0
+        current_segment = ""
+
+        while i < len(inner_content):
+            char = inner_content[i]
+
+            if char == "<":
+                # 태그 시작 - 전체 태그 추출
+                tag_end = inner_content.find(">", i)
+                if tag_end == -1:
+                    current_segment += char
+                    i += 1
+                    continue
+
+                tag = inner_content[i : tag_end + 1]
+
+                # 닫는 태그 체크
+                if tag.startswith("</"):
+                    if depth == 0:
+                        # depth 0에서 닫는 태그는 불가능 (잘못된 HTML)
+                        current_segment += tag
+                        i = tag_end + 1
+                        continue
+                    depth -= 1
+                    current_segment += tag
+                # 자가 닫힘 태그 또는 열기 태그
+                elif tag.endswith("/>") or tag.startswith("<!"):
+                    # 자가 닫힘 태그나 주석
+                    if depth == 0:
+                        # depth 0에서 자가 닫힘 태그는 하나의 segment
+                        if current_segment.strip():
+                            segments.append(current_segment)
+                        segments.append(tag)
+                        current_segment = ""
+                    else:
+                        current_segment += tag
+                else:
+                    # 열기 태그
+                    if depth == 0:
+                        # depth 0에서 새 태그 시작 - 이전 텍스트 저장
+                        if current_segment.strip():
+                            segments.append(current_segment)
+                            current_segment = ""
+                    current_segment += tag
+                    depth += 1
+
+                i = tag_end + 1
+            else:
+                current_segment += char
+                i += 1
+
+        # 마지막 segment 처리
+        if current_segment.strip():
+            segments.append(current_segment)
+
+        # 혼합 콘텐츠 체크 (img가 있고 다른 것도 있는 경우)
+        has_img = any(
+            re.search(r"<img\s+[^>]*/?>", seg, re.IGNORECASE) for seg in segments
+        )
+        has_other = any(
+            not re.match(r"^\s*<img\s+[^>]*/?\s*>\s*$", seg, re.IGNORECASE)
+            for seg in segments
+        )
+
+        if not has_img or not has_other or len(segments) <= 1:
+            # 혼합 콘텐츠가 아니거나 segment가 1개 이하 - 변경 없음
+            continue
+
+        # 각 segment를 개별 div로 감싸기
+        new_divs = []
+        for segment in segments:
+            stripped = segment.strip()
+            if stripped:  # 빈 콘텐츠 무시
+                new_divs.append(f"{opening_tag}{segment}{closing_tag}")
+
+        # 결과 조합
+        if new_divs:
+            # 원본 div를 새로운 div들로 교체
+            new_content = (
+                content[: match.start()] + "".join(new_divs) + content[match.end() :]
+            )
+            fixed_data[field] = new_content
+
+    return fixed_data
+
+
 def unescape_html_tags(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
     tags = ["div", "p", "ol", "ul", "li"]
 
@@ -789,6 +905,7 @@ def process_single_problem(problem: Dict[str, Any]) -> Dict[str, Any]:
     fixed_data = remove_refer_markers(fixed_data)
     fixed_data = normalize_html_wrappers(fixed_data)
     fixed_data = restore_field_div_classes(fixed_data)
+    fixed_data = separate_image_div(fixed_data)
     fixed_data = wrap_latex_content(fixed_data)
     fixed_data = normalize_reference_text(fixed_data)
 
