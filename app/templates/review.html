@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sisyphus Reviewer // Job {{ job_id }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Syncopate:wght@700&display=swap" rel="stylesheet">
+    <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: false
+      }
+    };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #121218;
+            --text-primary: #e0e0e0;
+            --text-secondary: #888899;
+            --accent-color: #00d4ff;
+            --diff-color: #ff9d00;
+            --border-color: #2a2a35;
+            --grid-color: rgba(42, 42, 53, 0.3);
+            --good-color: #00ff88;
+            --bad-color: #ff4444;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'IBM Plex Mono', monospace;
+            background-image: 
+                linear-gradient(var(--grid-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+            background-size: 20px 20px;
+            overflow: hidden;
+        }
+
+        header {
+            padding: 15px 20px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        h1 {
+            font-family: 'Syncopate', sans-serif;
+            font-size: 1.1rem;
+            margin: 0;
+            color: var(--accent-color);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .btn {
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid var(--accent-color);
+            color: var(--accent-color);
+            padding: 8px 16px;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .btn:hover:not(:disabled) {
+            background: var(--accent-color);
+            color: #000;
+        }
+
+        .btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            border-color: var(--text-secondary);
+            color: var(--text-secondary);
+            background: transparent;
+        }
+
+        .btn-submit {
+            background: rgba(0, 255, 136, 0.1);
+            border-color: var(--good-color);
+            color: var(--good-color);
+        }
+
+        .btn-submit:hover:not(:disabled) {
+            background: var(--good-color);
+            color: #000;
+        }
+
+        .page-indicator {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            min-width: 150px;
+            text-align: center;
+        }
+
+        /* Review Toggle */
+        .review-toggle {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            background: var(--bg-primary);
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+        }
+
+        .review-label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        .review-btn {
+            padding: 6px 12px;
+            font-size: 0.75rem;
+            border: 1px solid;
+            background: transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+            font-weight: 600;
+        }
+
+        .review-btn.good {
+            border-color: var(--good-color);
+            color: var(--good-color);
+        }
+
+        .review-btn.good.active {
+            background: var(--good-color);
+            color: #000;
+        }
+
+        .review-btn.bad {
+            border-color: var(--bad-color);
+            color: var(--bad-color);
+        }
+
+        .review-btn.bad.active {
+            background: var(--bad-color);
+            color: #000;
+        }
+
+        #app {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        .panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 10px 15px;
+            background: rgba(0,0,0,0.2);
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .panel-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .field-wrapper {
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .field-wrapper:last-child {
+            border-bottom: none;
+        }
+
+        .field-label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        .field-content {
+            font-size: 0.95rem;
+            line-height: 1.8;
+            padding-left: 10px;
+        }
+
+        .field-type {
+            background: rgba(0, 212, 255, 0.1);
+            padding: 6px 10px;
+            border-radius: 3px;
+        }
+
+        .field-question {
+            padding: 8px 0;
+        }
+
+        .field-refer {
+            padding: 8px 0;
+        }
+
+        .field-refer ol, .reference ol {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        
+        .field-refer li, .reference li {
+            margin: 4px 0;
+            padding-left: 5px;
+        }
+
+        .field-choice {
+            padding: 6px 0;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 3px;
+            margin: 4px 0;
+            padding: 6px 10px;
+        }
+
+        .field-answer {
+            font-weight: bold;
+            color: var(--accent-color);
+            padding: 8px 0;
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .field-solution {
+            padding: 10px 0;
+            background: rgba(0, 0, 0, 0.15);
+            border-radius: 3px;
+            padding: 10px;
+        }
+
+        .field-content mjx-container {
+            font-size: 110% !important;
+        }
+
+        .id-badge {
+            background: var(--accent-color);
+            color: #000;
+            padding: 2px 6px;
+            border-radius: 2px;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+        
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-primary); }
+        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            padding: 30px;
+            border-radius: 4px;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        .modal-title {
+            font-size: 1.2rem;
+            color: var(--accent-color);
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .modal-message {
+            color: var(--text-primary);
+            margin-bottom: 25px;
+            line-height: 1.6;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .btn-cancel {
+            background: rgba(136, 136, 153, 0.1);
+            border-color: var(--text-secondary);
+            color: var(--text-secondary);
+        }
+
+        .btn-cancel:hover {
+            background: var(--text-secondary);
+            color: #000;
+        }
+
+        .hint-box {
+            background: rgba(0, 212, 255, 0.05);
+            border: 1px solid var(--border-color);
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .bad-list-container {
+            margin-top: 20px;
+            text-align: left;
+        }
+
+        .bad-list-label {
+            font-size: 0.8rem;
+            color: var(--bad-color);
+            margin-bottom: 8px;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .bad-list-textarea {
+            width: 100%;
+            height: 100px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 10px;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.85rem;
+            resize: none;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        
+        .bad-list-textarea:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Sisyphus Reviewer</h1>
+        <div class="controls">
+            <button id="btn-prev" class="btn" onclick="prevPage()">← Prev</button>
+            <span id="page-indicator" class="page-indicator">Loading...</span>
+            <button id="btn-next" class="btn" onclick="nextPage()">Next →</button>
+            <div class="review-toggle">
+                <span class="review-label">Review:</span>
+                <button class="review-btn good active" onclick="setReview('GOOD')">GOOD (1)</button>
+                <button class="review-btn bad" onclick="setReview('BAD')">BAD (2)</button>
+            </div>
+            <button id="btn-submit" class="btn btn-submit" onclick="openSubmitModal()">최종 제출</button>
+        </div>
+    </header>
+    
+    <div id="app"></div>
+
+    <div class="hint-box" style="position: fixed; bottom: 20px; left: 20px; z-index: 100;">
+        💡 키보드 단축키: ← → (네비게이션) | 1 (GOOD) | 2 (BAD)
+    </div>
+
+    <div id="submit-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title">최종 제출 확인</div>
+            <div class="modal-message">
+                정말 제출하시겠습니까?<br>
+                제출 후에는 수정할 수 없습니다.<br><br>
+                <strong id="submit-stats"></strong>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-cancel" onclick="closeSubmitModal()">취소</button>
+                <button class="btn btn-submit" onclick="submitReview()">확인</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="result-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title">제출 완료</div>
+            <div class="modal-message">
+                <div id="result-updated-count" style="font-size: 1.1rem; color: var(--good-color); margin-bottom: 15px;"></div>
+                
+                <div class="bad-list-container">
+                    <div class="bad-list-label">
+                        <span id="result-bad-status">BAD 항목</span>
+                    </div>
+                    <div id="result-bad-container" style="display: none;">
+                        <textarea id="result-bad-list" class="bad-list-textarea" readonly onclick="this.select()"></textarea>
+                        <button id="btn-copy-bad" class="btn" style="width: 100%; border-color: var(--bad-color); color: var(--bad-color);" onclick="copyBadGroupIds()">
+                            BAD 리스트 복사
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-submit" onclick="closeResultModal()">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const jobId = {{ job_id }};
+        let DATA = [];
+        let reviewStates = {}; // { result_id: 'GOOD' | 'BAD' }
+        let currentIndex = 0;
+        let isSubmitted = false;
+
+        // Load results from API
+        async function loadResults() {
+            try {
+                const response = await fetch(`/jobs/${jobId}/results`);
+                if (!response.ok) throw new Error('Failed to load results');
+                
+                const data = await response.json();
+                DATA = data.results;
+                
+                // Initialize review states (default: GOOD)
+                DATA.forEach(item => {
+                    reviewStates[item.result_id] = item.human_review || 'GOOD';
+                });
+                
+                renderPage();
+            } catch (error) {
+                console.error('Error loading results:', error);
+                document.getElementById('app').innerHTML = '<div style="margin:auto;color:var(--error-color)">Failed to load results</div>';
+            }
+        }
+
+        function renderField(data, field, label, customClass) {
+            const value = data[field];
+            if (value === null || value === undefined) return '';
+            return `
+                <div class="field-wrapper ${customClass || ''}">
+                    <div class="field-label">${label}</div>
+                    <div class="field-content">${value}</div>
+                </div>
+            `;
+        }
+
+        function renderPanel(data, title, badge) {
+            const fields = [
+                { field: 'type', label: 'TYPE', class: 'field-type' },
+                { field: 'question', label: 'QUESTION', class: 'field-question' },
+                { field: 'refer', label: 'REFER', class: 'field-refer' },
+                { field: 'choice1', label: 'CHOICE 1', class: 'field-choice' },
+                { field: 'choice2', label: 'CHOICE 2', class: 'field-choice' },
+                { field: 'choice3', label: 'CHOICE 3', class: 'field-choice' },
+                { field: 'choice4', label: 'CHOICE 4', class: 'field-choice' },
+                { field: 'choice5', label: 'CHOICE 5', class: 'field-choice' },
+                { field: 'answer', label: 'ANSWER', class: 'field-answer' },
+                { field: 'solution', label: 'SOLUTION', class: 'field-solution' }
+            ];
+
+            let html = fields.map(f => renderField(data, f.field, f.label, f.class)).join('');
+
+            return `
+                <div class="panel">
+                    <div class="panel-header">
+                        <span>${title}</span>
+                        <span class="id-badge">${badge}</span>
+                    </div>
+                    <div class="panel-content">
+                        ${html}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderPage() {
+            if (!DATA || DATA.length === 0) {
+                document.getElementById('app').innerHTML = '<div style="margin:auto">No Data Loaded</div>';
+                return;
+            }
+
+            const item = DATA[currentIndex];
+            const app = document.getElementById('app');
+            const groupId = item.original && item.original.group_id !== undefined && item.original.group_id !== null
+                ? item.original.group_id
+                : 'N/A';
+
+            // Update controls
+            document.getElementById('page-indicator').innerText = `Problem ${currentIndex + 1} of ${DATA.length} (ID: ${item.original_id})`;
+            document.getElementById('btn-prev').disabled = currentIndex === 0 || isSubmitted;
+            document.getElementById('btn-next').disabled = currentIndex === DATA.length - 1 || isSubmitted;
+
+            // Update review toggle buttons
+            const currentReview = reviewStates[item.result_id];
+            document.querySelectorAll('.review-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.classList.contains(currentReview.toLowerCase())) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // Disable review buttons if submitted
+            document.querySelectorAll('.review-btn').forEach(btn => {
+                btn.disabled = isSubmitted;
+            });
+
+            // Render Panels with HTML content
+            app.innerHTML = `
+                ${renderPanel(item.original, 'ORIGINAL DATA', `GROUP_ID: ${groupId}`)}
+                ${renderPanel(item.fixed, 'FIXED DATA (LLM)', 'GEMINI 3.0')}
+            `;
+
+            // Trigger MathJax rendering
+            if (window.MathJax && window.MathJax.typesetPromise) {
+                window.MathJax.typesetPromise([document.getElementById('app')]).catch(err => console.error('MathJax error:', err));
+            }
+        }
+
+        function setReview(state) {
+            if (isSubmitted) return;
+            
+            const item = DATA[currentIndex];
+            reviewStates[item.result_id] = state;
+            
+            // Update buttons
+            document.querySelectorAll('.review-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.classList.contains(state.toLowerCase())) {
+                    btn.classList.add('active');
+                }
+            });
+        }
+
+        function prevPage() {
+            if (currentIndex > 0 && !isSubmitted) {
+                currentIndex--;
+                renderPage();
+            }
+        }
+
+        function nextPage() {
+            if (currentIndex < DATA.length - 1 && !isSubmitted) {
+                currentIndex++;
+                renderPage();
+            }
+        }
+
+        function openSubmitModal() {
+            if (isSubmitted) return;
+            
+            const goodCount = Object.values(reviewStates).filter(v => v === 'GOOD').length;
+            const badCount = Object.values(reviewStates).filter(v => v === 'BAD').length;
+            
+            document.getElementById('submit-stats').textContent = `GOOD: ${goodCount} | BAD: ${badCount}`;
+            document.getElementById('submit-modal').classList.add('show');
+        }
+
+        function closeSubmitModal() {
+            document.getElementById('submit-modal').classList.remove('show');
+        }
+
+        async function submitReview() {
+            try {
+                // Update each result's human_review
+                const updates = [];
+                for (const [resultId, review] of Object.entries(reviewStates)) {
+                    updates.push(
+                        fetch(`/results/${resultId}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ human_review: review })
+                        })
+                    );
+                }
+                
+                await Promise.all(updates);
+                
+                // Apply to production DB
+                const applyResponse = await fetch(`/jobs/${jobId}/apply`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (!applyResponse.ok) throw new Error('Failed to apply changes');
+                
+                const result = await applyResponse.json();
+                
+                isSubmitted = true;
+                closeSubmitModal();
+                
+                const badGroupIds = new Set();
+                DATA.forEach(item => {
+                    if (reviewStates[item.result_id] === 'BAD') {
+                        if (item.original && item.original.group_id !== undefined && item.original.group_id !== null) {
+                            badGroupIds.add(item.original.group_id);
+                        }
+                    }
+                });
+                
+                const sortedBadIds = Array.from(badGroupIds).sort((a, b) => {
+                    return String(a).localeCompare(String(b), undefined, { numeric: true });
+                });
+                
+                openResultModal(result.updated_count, sortedBadIds);
+                
+                document.getElementById('btn-submit').disabled = true;
+                document.querySelectorAll('.review-btn').forEach(btn => btn.disabled = true);
+                
+            } catch (error) {
+                console.error('Submit error:', error);
+                alert('제출 실패: ' + error.message);
+            }
+        }
+
+        function openResultModal(updatedCount, badIds) {
+            const modal = document.getElementById('result-modal');
+            document.getElementById('result-updated-count').textContent = `업데이트 성공: ${updatedCount}건`;
+            
+            const badContainer = document.getElementById('result-bad-container');
+            const badTextarea = document.getElementById('result-bad-list');
+            const copyBtn = document.getElementById('btn-copy-bad');
+            const statusLabel = document.getElementById('result-bad-status');
+
+            if (badIds.length > 0) {
+                badContainer.style.display = 'block';
+                badTextarea.value = badIds.join('\n');
+                copyBtn.disabled = false;
+                statusLabel.textContent = `BAD 항목 (${badIds.length}건)`;
+            } else {
+                badContainer.style.display = 'none';
+                badTextarea.value = '';
+                copyBtn.disabled = true;
+                statusLabel.textContent = 'BAD 없음';
+            }
+            
+            modal.classList.add('show');
+        }
+
+        function closeResultModal() {
+            document.getElementById('result-modal').classList.remove('show');
+        }
+
+        function copyBadGroupIds() {
+            const textarea = document.getElementById('result-bad-list');
+            const text = textarea.value;
+            const btn = document.getElementById('btn-copy-bad');
+            const originalText = btn.textContent;
+            
+            const showSuccess = () => {
+                btn.textContent = '복사 완료!';
+                btn.style.background = 'var(--good-color)';
+                btn.style.color = '#000';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '';
+                    btn.style.color = '';
+                }, 2000);
+            };
+            
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(showSuccess).catch(() => {
+                    textarea.select();
+                    document.execCommand('copy');
+                    showSuccess();
+                });
+            } else {
+                textarea.select();
+                textarea.setSelectionRange(0, 99999);
+                document.execCommand('copy');
+                showSuccess();
+            }
+        }
+
+        // Keyboard Navigation
+        document.addEventListener('keydown', (e) => {
+            if (isSubmitted) return;
+            
+            if (e.key === 'ArrowLeft') prevPage();
+            if (e.key === 'ArrowRight') nextPage();
+            if (e.key === '1') setReview('GOOD');
+            if (e.key === '2') setReview('BAD');
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeSubmitModal();
+                closeResultModal();
+            }
+        });
+
+        // Initialize
+        loadResults();
+    </script>
+</body>
+</html>
