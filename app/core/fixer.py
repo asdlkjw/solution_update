@@ -223,6 +223,21 @@ def fix_content_with_llm(problem_data: Dict[str, Any]) -> Dict[str, Any]:
             response.raise_for_status()
             result = response.json()
 
+            if "choices" not in result:
+                error_msg = f"Invalid API response format (missing 'choices'). Response: {result}"
+                if attempt < max_attempts - 1:
+                    print(
+                        f"API format error for ID {problem_data.get('id')}, retrying... ({attempt + 1}/{max_attempts})",
+                        file=sys.stderr,
+                    )
+                    time.sleep(2**attempt)
+                    continue
+                print(
+                    f"Error calling LLM for ID {problem_data.get('id')}: {error_msg}",
+                    file=sys.stderr,
+                )
+                return {"error": error_msg, "original_id": problem_data.get("id")}
+
             content = result["choices"][0]["message"]["content"]
             return json.loads(content)
         except requests.RequestException as e:
