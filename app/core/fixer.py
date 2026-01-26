@@ -426,11 +426,14 @@ def remove_refer_markers(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
     return fixed_data
 
 
-def wrap_choice_latex(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
-    """선택지가 영어/숫자/기호만 있고 $가 0-1개면 $로 감쌉니다."""
-    choice_fields = ["choice1", "choice2", "choice3", "choice4", "choice5"]
+def wrap_latex_content(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
+    """LaTeX 수식이 $로 감싸지지 않은 경우 감쌉니다."""
+    target_fields = ["choice1", "choice2", "choice3", "choice4", "choice5", "answer"]
 
-    for field in choice_fields:
+    # LaTeX 명령어 패턴 (backslash로 시작)
+    latex_command_pattern = r"\\(?:frac|cfrac|sqrt|cdot|times|div|pm|mp|leq|geq|neq|approx|infty|sum|prod|int|lim|sin|cos|tan|log|ln|exp|alpha|beta|gamma|delta|theta|pi|sigma|omega)"
+
+    for field in target_fields:
         content = fixed_data.get(field)
         if not content or not isinstance(content, str):
             continue
@@ -440,25 +443,32 @@ def wrap_choice_latex(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
         if not text_only:
             continue
 
+        # 이미 $로 완전히 감싸져 있으면 스킵
+        if text_only.startswith("$") and text_only.endswith("$"):
+            continue
+
         # $ 개수 확인
         dollar_count = content.count("$")
 
-        # $가 0개 또는 1개이고, 영문/숫자/수학기호만 있는지 확인
-        if dollar_count <= 1:
-            # 한글 체크 (유니코드 범위: \uAC00-\uD7A3)
+        # $가 없는 경우에만 처리
+        if dollar_count == 0:
+            # 한글 체크 - 한글이 있으면 스킵
             if re.search(r"[\uAC00-\uD7A3]", text_only):
                 continue
 
-            # 영문자, 숫자, 수학 기호만 있는지 확인
-            math_content_pattern = r"^[\s\w\d\+\-\*/\^=<>\(\)\[\]\{\},\.]+$"
-            if re.match(math_content_pattern, text_only):
-                # HTML 태그가 복잡하면 스킵
-                if "<" in content and ">" in content:
-                    continue
+            # HTML 태그가 있으면 스킵
+            if "<" in content and ">" in content:
+                continue
 
-                # $가 없고, 텍스트가 있으면 감싸기
-                if dollar_count == 0 and len(text_only) > 0:
-                    fixed_data[field] = f"${text_only}$"
+            # LaTeX 명령어가 있으면 감싸기
+            if re.search(latex_command_pattern, text_only):
+                fixed_data[field] = f"${text_only}$"
+                continue
+
+            # 영문자, 숫자, 수학 기호만 있으면 감싸기
+            math_content_pattern = r"^[\s\w\d\+\-\*/\^=<>\(\)\[\]\{\},\.\\]+$"
+            if re.match(math_content_pattern, text_only) and len(text_only) > 0:
+                fixed_data[field] = f"${text_only}$"
 
     return fixed_data
 
@@ -502,7 +512,7 @@ def process_single_problem(problem: Dict[str, Any]) -> Dict[str, Any]:
     fixed_data = normalize_refer_view_header(fixed_data)
     fixed_data = remove_refer_markers(fixed_data)
     fixed_data = normalize_html_wrappers(fixed_data)
-    fixed_data = wrap_choice_latex(fixed_data)
+    fixed_data = wrap_latex_content(fixed_data)
     fixed_data = normalize_reference_text(fixed_data)
 
     return {
