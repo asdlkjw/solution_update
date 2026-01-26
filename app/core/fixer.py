@@ -299,6 +299,32 @@ def normalize_html_wrappers(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
     return fixed_data
 
 
+def restore_field_div_classes(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
+    """question, refer, solution 필드의 <div>에 class 속성이 없으면 추가"""
+    field_class_map = {
+        "question": "question",
+        "refer": "reference",
+        "solution": "solution",
+    }
+
+    for field, class_name in field_class_map.items():
+        content = fixed_data.get(field)
+        if not content or not isinstance(content, str):
+            continue
+
+        if re.match(r"^\s*<div\s*>", content, re.IGNORECASE):
+            content = re.sub(
+                r"^(\s*)<div\s*>",
+                f'\\1<div class="{class_name}">',
+                content,
+                count=1,
+                flags=re.IGNORECASE,
+            )
+            fixed_data[field] = content
+
+    return fixed_data
+
+
 def unescape_html_tags(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
     tags = ["div", "p", "ol", "ul", "li"]
 
@@ -762,6 +788,7 @@ def process_single_problem(problem: Dict[str, Any]) -> Dict[str, Any]:
     fixed_data = normalize_refer_view_header(fixed_data)
     fixed_data = remove_refer_markers(fixed_data)
     fixed_data = normalize_html_wrappers(fixed_data)
+    fixed_data = restore_field_div_classes(fixed_data)
     fixed_data = wrap_latex_content(fixed_data)
     fixed_data = normalize_reference_text(fixed_data)
 
