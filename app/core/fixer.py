@@ -1,21 +1,21 @@
-#!/usr/bin/env python3
-import os
-import sys
-import json
 import argparse
 import csv
+import json
+import os
 import re
+import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
+from typing import Any, Dict, List, Literal
+
 import pymysql
 import pymysql.cursors
 import requests
 from dotenv import load_dotenv
-from pathlib import Path
-from typing import List, Dict, Any, Literal
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 
-env_path = Path(__file__).resolve().parent.parent / ".env"
+env_path = Path(__file__).resolve().parents[2] / ".env"
 load_dotenv(dotenv_path=env_path)
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
@@ -27,6 +27,8 @@ DB_NAME = os.getenv("DB_NAME")
 
 MODEL_NAME = "google/gemini-3-flash-preview"
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+PROMPT_TEMPLATE_PATH = Path(__file__).resolve().parents[2] / "prompt_template.json"
+REPORT_TEMPLATE_PATH = Path(__file__).resolve().parents[2] / "report_template.html"
 
 
 def read_group_ids_from_csv(csv_path: str) -> List[int]:
@@ -138,9 +140,7 @@ def fix_content_with_llm(problem_data: Dict[str, Any]) -> Dict[str, Any]:
 
     # Load prompt template from external JSON file
     try:
-        with open(
-            Path(__file__).parent / "prompt_template.json", "r", encoding="utf-8"
-        ) as f:
+        with open(PROMPT_TEMPLATE_PATH, "r", encoding="utf-8") as f:
             prompts = json.load(f)
     except FileNotFoundError:
         print("Error: prompt_template.json not found.", file=sys.stderr)
@@ -349,9 +349,7 @@ def process_single_problem(problem: Dict[str, Any]) -> Dict[str, Any]:
 def generate_html_report(results: List[Dict[str, Any]], output_path: Path):
     # 결과 데이터를 HTML 리포트로 저장합니다.
     try:
-        with open(
-            Path(__file__).parent / "report_template.html", "r", encoding="utf-8"
-        ) as f:
+        with open(REPORT_TEMPLATE_PATH, "r", encoding="utf-8") as f:
             html_content = f.read()
     except FileNotFoundError:
         print("Error: report_template.html not found.", file=sys.stderr)
@@ -446,7 +444,7 @@ def main():
     # 결과 정렬 (ID 순)
     results.sort(key=lambda x: x["original_id"])
 
-    output_path = Path(__file__).parent / args.output
+    output_path = Path(__file__).resolve().parents[2] / args.output
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2, ensure_ascii=False)
 
