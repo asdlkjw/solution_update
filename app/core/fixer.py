@@ -439,49 +439,296 @@ def remove_refer_markers(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
     return fixed_data
 
 
+TAG_RE = re.compile(r"</?[a-zA-Z][^<>]*?>", re.DOTALL)
+MATH_SEG_RE = re.compile(
+    r"\$\$(?:\\.|[^\$])*\$\$"
+    r"|\$(?:\\.|[^\$])*\$"
+    r"|\\\((?:\\.|[^\\])*?\\\)"
+    r"|\\\[(?:\\.|[^\\])*?\\\]"
+    r"|\\begin\{([a-zA-Z*]+)\}.*?\\end\{\1\}",
+    re.DOTALL,
+)
+PLACEHOLDER_RE = re.compile(r"(@@(?:TAG|MATH)\d+@@)")
+MATH_CHAR_RE = re.compile(r"[0-9A-Za-z_\^%\+\-\*/=<>\\\.\(\)\{\}~#&!□]")
+KOREAN_RE = re.compile(r"[\uac00-\ud7a3\u3131-\u318f]")
+HAS_MATH_CORE_RE = re.compile(r"[A-Za-z0-9\\]")
+ENTITY_RE = re.compile(r"&[A-Za-z0-9#]+;")
+DUP_PAREN_OPEN_RE = re.compile(r"\\\(\s*\\\(")
+DUP_PAREN_CLOSE_RE = re.compile(r"\\\)\s*\\\)")
+
+
+def _normalize_double_paren(text: str) -> str:
+    r"""중복 수식 구분자 \(\( → \(, \)\) → \) 정규화"""
+    tags = []
+    out = []
+    pos = 0
+    for m in TAG_RE.finditer(text):
+        out.append(text[pos : m.start()])
+        tags.append(m.group(0))
+        out.append(f"@@TAG_DBL{len(tags) - 1}@@")
+        pos = m.end()
+    out.append(text[pos:])
+    core = "".join(out)
+
+    while True:
+        new_core = DUP_PAREN_OPEN_RE.sub(r"\\(", core)
+        new_core = DUP_PAREN_CLOSE_RE.sub(r"\\)", new_core)
+        if new_core == core:
+            break
+        core = new_core
+
+    for idx, tag in enumerate(tags):
+        core = core.replace(f"@@TAG_DBL{idx}@@", tag)
+    return core
+
+
+def _auto_wrap_inline_math(text: str) -> str:
+    """HTML/LaTeX 문자열에서 감싸지지 않은 수식을 $...$로 자동 감싸기"""
+    text = text.replace("<math>", "$").replace("</math>", "$")
+    text = text.replace("<em>", "$").replace("</em>", "$")
+    text = text.replace("\\degree", "^\\circ").replace("\\n ", "")
+
+    # 1) HTML 태그 마스킹
+    tags = []
+    out = []
+    pos = 0
+    for m in TAG_RE.finditer(text):
+        out.append(text[pos : m.start()])
+        tags.append(m.group(0))
+        out.append(f"@@TAG{len(tags) - 1}@@")
+        pos = m.end()
+    out.append(text[pos:])
+    text = "".join(out)
+
+    # 2) 이미 감싸진 수식 마스킹
+    maths = []
+    out = []
+    pos = 0
+    for m in MATH_SEG_RE.finditer(text):
+        out.append(text[pos : m.start()])
+        maths.append(m.group(0))
+        out.append(f"@@MATH{len(maths) - 1}@@")
+        pos = m.end()
+    out.append(text[pos:])
+    text = "".join(out).replace("\\(", "").replace("\\)", "")
+
+    # 3) 플레이스홀더 기준으로 쪼개서 일반 텍스트만 처리
+    parts = PLACEHOLDER_RE.split(text)
+    result_parts = []
+
+    for part in parts:
+        if not part:
+            continue
+        if part.startswith("@@") and part.endswith("@@"):
+            result_parts.append(part)
+            continue
+
+        i = 0
+        in_math = False
+        buf = []
+        brace_depth = 0
+        local_out = []
+
+        while i < len(part):
+            ch = part[i]
+
+            # HTML 엔티티
+            if ch == "&":
+                m_ent = ENTITY_RE.match(part, i)
+                if m_ent:
+                    if in_math and buf:
+                        seg = "".join(buf)
+                        if HAS_MATH_CORE_RE.search(seg):
+                            local_out.append(f"${seg}$")
+                        else:
+                            local_out.append(seg)
+                        buf = []
+                        in_math = False
+                        brace_depth = 0
+                    local_out.append(m_ent.group(0))
+                    i = m_ent.end()
+                    continue
+
+            # \text{...} 한 덩어리
+            if part.startswith(r"\text{", i):
+                j = i + len(r"\text{")
+                brace = 1
+                while j < len(part) and brace > 0:
+                    if part[j] == "{":
+                        brace += 1
+                    elif part[j] == "}":
+                        brace -= 1
+                    j += 1
+                token = part[i:j]
+                if in_math:
+                    buf.append(token)
+                else:
+                    in_math = True
+                    buf = [token]
+                    brace_depth = 0
+                i = j
+                continue
+
+            if not in_math:
+                if ch == "\\":
+                    m_space = re.match(r"\\(\s|,|;|!|:)", part[i:])
+                    if m_space:
+                        local_out.append(" ")
+                        i += len(m_space.group(0))
+                        continue
+                    m_sym = re.match(r"\\[%&#]", part[i:])
+                    if m_sym:
+                        in_math = True
+                        buf = [m_sym.group(0)]
+                        brace_depth = 0
+                        i += len(m_sym.group(0))
+                        continue
+                    m_brace = re.match(r"\\[{}]", part[i:])
+                    if m_brace:
+                        in_math = True
+                        buf = [m_brace.group(0)]
+                        brace_depth = 0
+                        i += len(m_brace.group(0))
+                        continue
+                    m_macro = re.match(r"\\[A-Za-z]+", part[i:])
+                    if m_macro:
+                        in_math = True
+                        buf = [m_macro.group(0)]
+                        brace_depth = 0
+                        i += len(m_macro.group(0))
+                        continue
+                    local_out.append(ch)
+                    i += 1
+                    continue
+
+                if (
+                    ch != "~"
+                    and MATH_CHAR_RE.match(ch)
+                    and not KOREAN_RE.match(ch)
+                    and not (
+                        ch == "." and not (i + 1 < len(part) and part[i + 1].isdigit())
+                    )
+                ):
+                    in_math = True
+                    buf = [ch]
+                    brace_depth = 1 if ch == "{" else 0
+                    i += 1
+                else:
+                    local_out.append(ch)
+                    i += 1
+            else:
+                if KOREAN_RE.match(ch):
+                    if brace_depth == 0:
+                        seg = "".join(buf)
+                        if HAS_MATH_CORE_RE.search(seg):
+                            local_out.append(f"${seg}$")
+                        else:
+                            local_out.append(seg)
+                        buf = []
+                        in_math = False
+                        brace_depth = 0
+                        local_out.append(ch)
+                        i += 1
+                    else:
+                        buf.append(ch)
+                        i += 1
+                    continue
+
+                if ch == "\\":
+                    m_brace = re.match(r"\\[{}]", part[i:])
+                    if m_brace:
+                        buf.append(m_brace.group(0))
+                        i += len(m_brace.group(0))
+                        continue
+                    m_macro = re.match(r"\\[A-Za-z]+", part[i:])
+                    if m_macro:
+                        buf.append(m_macro.group(0))
+                        i += len(m_macro.group(0))
+                        continue
+                    buf.append(ch)
+                    i += 1
+                    continue
+
+                if ch in "[]":
+                    buf.append(ch)
+                    i += 1
+                    continue
+
+                if ch == ",":
+                    buf.append(ch)
+                    i += 1
+                    continue
+
+                if MATH_CHAR_RE.match(ch):
+                    buf.append(ch)
+                    if ch == "{":
+                        brace_depth += 1
+                    elif ch == "}" and brace_depth > 0:
+                        brace_depth -= 1
+                    i += 1
+                else:
+                    if ch.isspace():
+                        buf.append(ch)
+                        i += 1
+                    else:
+                        seg = "".join(buf)
+                        if HAS_MATH_CORE_RE.search(seg):
+                            local_out.append(f"${seg}$")
+                        else:
+                            local_out.append(seg)
+                        buf = []
+                        in_math = False
+                        brace_depth = 0
+                        continue
+
+        if in_math and buf:
+            seg = "".join(buf)
+            if HAS_MATH_CORE_RE.search(seg):
+                local_out.append(f"${seg}$")
+            else:
+                local_out.append(seg)
+
+        result_parts.append("".join(local_out))
+
+    text = "".join(result_parts)
+
+    # 4) 수식 복원
+    for idx, val in enumerate(maths):
+        text = text.replace(f"@@MATH{idx}@@", val)
+
+    # 5) 태그 복원
+    for idx, val in enumerate(tags):
+        text = text.replace(f"@@TAG{idx}@@", val)
+
+    # 6) 후처리
+    text = text.replace("$\\$", "$\\ $")
+    text = text.replace("\\textcircled{", "\\fbox{")
+
+    return text
+
+
 def wrap_latex_content(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
     """LaTeX 수식이 $로 감싸지지 않은 경우 감쌉니다."""
-    target_fields = ["choice1", "choice2", "choice3", "choice4", "choice5", "answer"]
-
-    # LaTeX 명령어 패턴 (backslash로 시작)
-    latex_command_pattern = r"\\(?:frac|cfrac|sqrt|cdot|times|div|pm|mp|leq|geq|neq|approx|infty|sum|prod|int|lim|sin|cos|tan|log|ln|exp|alpha|beta|gamma|delta|theta|pi|sigma|omega)"
+    target_fields = [
+        "choice1",
+        "choice2",
+        "choice3",
+        "choice4",
+        "choice5",
+        "answer",
+        "solution",
+        "question",
+        "refer",
+    ]
 
     for field in target_fields:
         content = fixed_data.get(field)
         if not content or not isinstance(content, str):
             continue
 
-        # HTML 태그 제거 후 텍스트만 추출
-        text_only = re.sub(r"<[^>]+>", "", content).strip()
-        if not text_only:
-            continue
-
-        # 이미 $로 완전히 감싸져 있으면 스킵
-        if text_only.startswith("$") and text_only.endswith("$"):
-            continue
-
-        # $ 개수 확인
-        dollar_count = content.count("$")
-
-        # $가 없는 경우에만 처리
-        if dollar_count == 0:
-            # 한글 체크 - 한글 음절(\uAC00-\uD7A3) 또는 자모(\u3131-\u318F)가 있으면 스킵
-            if re.search(r"[\uAC00-\uD7A3\u3131-\u318F]", text_only):
-                continue
-
-            # HTML 태그가 있으면 스킵
-            if "<" in content and ">" in content:
-                continue
-
-            # LaTeX 명령어가 있으면 감싸기
-            if re.search(latex_command_pattern, text_only):
-                fixed_data[field] = f"${text_only}$"
-                continue
-
-            # 영문자, 숫자, 수학 기호만 있으면 감싸기
-            math_content_pattern = r"^[\s\w\d\+\-\*/\^=<>\(\)\[\]\{\},\.\\]+$"
-            if re.match(math_content_pattern, text_only) and len(text_only) > 0:
-                fixed_data[field] = f"${text_only}$"
+        content = _normalize_double_paren(content)
+        content = _auto_wrap_inline_math(content)
+        fixed_data[field] = content
 
     return fixed_data
 
