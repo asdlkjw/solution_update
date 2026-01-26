@@ -234,6 +234,19 @@ def fix_content_with_llm(problem_data: Dict[str, Any]) -> Dict[str, Any]:
                 file=sys.stderr,
             )
             return {"error": str(e), "original_id": problem_data.get("id")}
+        except json.JSONDecodeError as e:
+            if attempt < max_attempts - 1:
+                print(
+                    f"JSON parse error for ID {problem_data.get('id')}, retrying... ({attempt + 1}/{max_attempts})",
+                    file=sys.stderr,
+                )
+                time.sleep(2**attempt)
+                continue
+            print(
+                f"Error calling LLM for ID {problem_data.get('id')}: {e}",
+                file=sys.stderr,
+            )
+            return {"error": str(e), "original_id": problem_data.get("id")}
         except Exception as e:
             print(
                 f"Error calling LLM for ID {problem_data.get('id')}: {e}",
