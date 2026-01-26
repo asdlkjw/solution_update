@@ -465,8 +465,8 @@ def wrap_latex_content(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
 
         # $가 없는 경우에만 처리
         if dollar_count == 0:
-            # 한글 체크 - 한글이 있으면 스킵
-            if re.search(r"[\uAC00-\uD7A3]", text_only):
+            # 한글 체크 - 한글 음절(\uAC00-\uD7A3) 또는 자모(\u3131-\u318F)가 있으면 스킵
+            if re.search(r"[\uAC00-\uD7A3\u3131-\u318F]", text_only):
                 continue
 
             # HTML 태그가 있으면 스킵
