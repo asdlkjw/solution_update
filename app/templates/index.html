@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sisyphus // Problem Fixer</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Syncopate:wght@700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #121218;
+            --text-primary: #e0e0e0;
+            --text-secondary: #888899;
+            --accent-color: #00d4ff;
+            --border-color: #2a2a35;
+            --grid-color: rgba(42, 42, 53, 0.3);
+            --error-color: #ff4444;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'IBM Plex Mono', monospace;
+            background-image: 
+                linear-gradient(var(--grid-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+            background-size: 20px 20px;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 30px;
+        }
+
+        h1 {
+            font-family: 'Syncopate', sans-serif;
+            font-size: 1.5rem;
+            margin: 0 0 10px 0;
+            color: var(--accent-color);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-align: center;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-bottom: 30px;
+        }
+
+        label {
+            display: block;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 200px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.9rem;
+            padding: 12px;
+            border-radius: 4px;
+            resize: vertical;
+            margin-bottom: 15px;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+
+        .hint {
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            width: 100%;
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid var(--accent-color);
+            color: var(--accent-color);
+            padding: 12px 24px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn:hover:not(:disabled) {
+            background: var(--accent-color);
+            color: #000;
+        }
+
+        .btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .error {
+            background: rgba(255, 68, 68, 0.1);
+            border: 1px solid var(--error-color);
+            color: var(--error-color);
+            padding: 12px;
+            border-radius: 4px;
+            margin-top: 15px;
+            font-size: 0.85rem;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Sisyphus</h1>
+        <div class="subtitle">Math Problem Fixer</div>
+
+        <form id="job-form">
+            <label for="group-ids">Group IDs</label>
+            <textarea 
+                id="group-ids" 
+                name="group-ids" 
+                placeholder="Group IDs를 입력하세요
+예시:
+128126
+128127 128128
+128129, 128130"
+                required
+            ></textarea>
+            
+            <div class="hint">
+                ℹ️ 공백, 개행, 쉼표로 구분 가능합니다.
+            </div>
+
+            <button type="submit" class="btn" id="submit-btn">실행</button>
+            
+            <div class="error" id="error-msg"></div>
+        </form>
+    </div>
+
+    <script>
+        const form = document.getElementById('job-form');
+        const textarea = document.getElementById('group-ids');
+        const submitBtn = document.getElementById('submit-btn');
+        const errorMsg = document.getElementById('error-msg');
+
+        function showError(message) {
+            errorMsg.textContent = message;
+            errorMsg.classList.add('show');
+        }
+
+        function hideError() {
+            errorMsg.classList.remove('show');
+        }
+
+        function parseGroupIds(input) {
+            // 공백, 개행, 쉼표로 구분된 숫자 파싱
+            const cleaned = input.trim();
+            if (!cleaned) return [];
+            
+            const tokens = cleaned.split(/[\s,]+/);
+            const ids = [];
+            
+            for (const token of tokens) {
+                const trimmed = token.trim();
+                if (!trimmed) continue;
+                
+                const num = parseInt(trimmed, 10);
+                if (isNaN(num) || num <= 0) {
+                    throw new Error(`유효하지 않은 값: "${trimmed}"`);
+                }
+                ids.push(num);
+            }
+            
+            // 중복 제거
+            return [...new Set(ids)];
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideError();
+            
+            const input = textarea.value;
+            
+            try {
+                const groupIds = parseGroupIds(input);
+                
+                if (groupIds.length === 0) {
+                    showError('최소 1개 이상의 Group ID를 입력하세요.');
+                    return;
+                }
+                
+                submitBtn.disabled = true;
+                submitBtn.textContent = '작업 생성 중...';
+                
+                // POST /jobs API 호출
+                const response = await fetch('/jobs', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        input_type: 'group_id',
+                        input_value: groupIds.join(',')
+                    })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || '작업 생성 실패');
+                }
+                
+                const data = await response.json();
+                
+                // 진행률 화면으로 리다이렉트
+                window.location.href = `/status/${data.job_id}`;
+                
+            } catch (error) {
+                showError(error.message);
+                submitBtn.disabled = false;
+                submitBtn.textContent = '실행';
+            }
+        });
+    </script>
+</body>
+</html>

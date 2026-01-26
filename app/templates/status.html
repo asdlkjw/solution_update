@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sisyphus // Processing</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Syncopate:wght@700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #121218;
+            --text-primary: #e0e0e0;
+            --text-secondary: #888899;
+            --accent-color: #00d4ff;
+            --border-color: #2a2a35;
+            --grid-color: rgba(42, 42, 53, 0.3);
+            --success-color: #00ff88;
+            --error-color: #ff4444;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'IBM Plex Mono', monospace;
+            background-image: 
+                linear-gradient(var(--grid-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+            background-size: 20px 20px;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 700px;
+            width: 100%;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 40px;
+            text-align: center;
+        }
+
+        h1 {
+            font-family: 'Syncopate', sans-serif;
+            font-size: 1.3rem;
+            margin: 0 0 10px 0;
+            color: var(--accent-color);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .job-id {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            margin-bottom: 30px;
+        }
+
+        .status {
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .status.queued {
+            background: rgba(136, 136, 153, 0.1);
+            color: var(--text-secondary);
+        }
+
+        .status.running {
+            background: rgba(0, 212, 255, 0.1);
+            color: var(--accent-color);
+        }
+
+        .status.done {
+            background: rgba(0, 255, 136, 0.1);
+            color: var(--success-color);
+        }
+
+        .status.failed {
+            background: rgba(255, 68, 68, 0.1);
+            color: var(--error-color);
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 30px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-color), #00ff88);
+            width: 0%;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #000;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .stat {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            border-radius: 4px;
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            color: var(--accent-color);
+            font-weight: 600;
+        }
+
+        .btn {
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid var(--accent-color);
+            color: var(--accent-color);
+            padding: 12px 24px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn:hover {
+            background: var(--accent-color);
+            color: #000;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 1em;
+            height: 1em;
+            border: 2px solid rgba(0, 212, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--accent-color);
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Processing...</h1>
+        <div class="job-id">Job ID: <span id="job-id">{{ job_id }}</span></div>
+
+        <div class="status" id="status">
+            <span id="status-text">Queued</span>
+            <span id="status-spinner" class="spinner"></span>
+        </div>
+
+        <div class="progress-bar-container">
+            <div class="progress-bar" id="progress-bar">0%</div>
+        </div>
+
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-label">Total</div>
+                <div class="stat-value" id="total-count">-</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Processed</div>
+                <div class="stat-value" id="processed-count">-</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Errors</div>
+                <div class="stat-value" id="error-count">-</div>
+            </div>
+        </div>
+
+        <div id="action-container"></div>
+    </div>
+
+    <script>
+        const jobId = document.getElementById('job-id').textContent;
+        const statusEl = document.getElementById('status');
+        const statusText = document.getElementById('status-text');
+        const spinner = document.getElementById('status-spinner');
+        const progressBar = document.getElementById('progress-bar');
+        const totalCountEl = document.getElementById('total-count');
+        const processedCountEl = document.getElementById('processed-count');
+        const errorCountEl = document.getElementById('error-count');
+        const actionContainer = document.getElementById('action-container');
+
+        let pollInterval;
+
+        async function checkStatus() {
+            try {
+                const response = await fetch(`/jobs/${jobId}`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch status');
+                }
+                
+                const data = await response.json();
+                
+                // Update status
+                statusEl.className = `status ${data.status}`;
+                
+                const statusTexts = {
+                    'queued': 'Queued',
+                    'running': 'Running...',
+                    'done': '✓ Complete',
+                    'failed': '✗ Failed'
+                };
+                
+                statusText.textContent = statusTexts[data.status];
+
+                // Toggle spinner
+                if (data.status === 'queued' || data.status === 'running') {
+                    spinner.style.display = 'inline-block';
+                } else {
+                    spinner.style.display = 'none';
+                }
+                
+                // Update counts
+                totalCountEl.textContent = data.total_count || '-';
+                processedCountEl.textContent = data.processed_count || '-';
+                errorCountEl.textContent = data.error_count || '-';
+                
+                // Update progress bar
+                let progress = 0;
+                if (data.total_count > 0) {
+                    progress = Math.round((data.processed_count / data.total_count) * 100);
+                }
+                progressBar.style.width = `${progress}%`;
+                progressBar.textContent = `${progress}%`;
+                
+                // If done, show review button and stop polling
+                if (data.status === 'done') {
+                    clearInterval(pollInterval);
+                    actionContainer.innerHTML = `
+                        <a href="/review/${jobId}" class="btn">리뷰 시작</a>
+                    `;
+                } else if (data.status === 'failed') {
+                    clearInterval(pollInterval);
+                    actionContainer.innerHTML = `
+                        <a href="/" class="btn">처음으로</a>
+                    `;
+                }
+                
+            } catch (error) {
+                console.error('Error checking status:', error);
+            }
+        }
+
+        // Initial check
+        checkStatus();
+        
+        // Poll every 2 seconds
+        pollInterval = setInterval(checkStatus, 2000);
+    </script>
+</body>
+</html>
