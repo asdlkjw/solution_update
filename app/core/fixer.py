@@ -329,15 +329,181 @@ def normalize_refer_view_header(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
     return fixed_data
 
 
+def restore_missing_images(
+    original_data: Dict[str, Any], fixed_data: Dict[str, Any]
+) -> Dict[str, Any]:
+    """원본에 있던 이미지 태그가 fixed에서 누락된 경우 복원합니다."""
+    img_pattern = r'<img\s+[^>]*src\s*=\s*["\'][^"\']+["\'][^>]*/?\s*>'
+
+    fields_to_check = [
+        "question",
+        "refer",
+        "choice1",
+        "choice2",
+        "choice3",
+        "choice4",
+        "choice5",
+        "answer",
+        "solution",
+    ]
+
+    for field in fields_to_check:
+        original_content = original_data.get(field)
+        fixed_content = fixed_data.get(field)
+
+        if not original_content or not isinstance(original_content, str):
+            continue
+
+        # 원본에서 이미지 태그 추출
+        original_images = re.findall(img_pattern, str(original_content), re.IGNORECASE)
+        if not original_images:
+            continue
+
+        # fixed가 None이거나 빈 문자열인 경우
+        if not fixed_content:
+            fixed_content = ""
+
+        # fixed에서 이미지 태그 추출
+        fixed_images = re.findall(img_pattern, str(fixed_content), re.IGNORECASE)
+
+        # 누락된 이미지 찾기
+        for img in original_images:
+            # src 값 추출하여 비교
+            src_match = re.search(r'src\s*=\s*["\']([^"\']+)["\']', img, re.IGNORECASE)
+            if not src_match:
+                continue
+            src_value = src_match.group(1)
+
+            # fixed_images에 같은 src가 있는지 확인
+            img_exists = any(src_value in fixed_img for fixed_img in fixed_images)
+
+            if not img_exists:
+                # 이미지를 콘텐츠 앞에 추가
+                if fixed_content:
+                    fixed_data[field] = img + " " + fixed_content
+                else:
+                    fixed_data[field] = img
+                fixed_content = fixed_data[field]
+
+    return fixed_data
+
+
+def remove_refer_markers(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
+    """refer 필드에서 <표>, <조건> 마커를 제거합니다 (question에 없을 때만)."""
+    question = fixed_data.get("question")
+    if not isinstance(question, str):
+        return fixed_data
+
+    refer = fixed_data.get("refer")
+    if not isinstance(refer, str):
+        return fixed_data
+
+    # 각 마커에 대해 처리
+    markers = [
+        (
+            r"표",
+            [
+                r"<\s*p\s*>\s*(?:&lt;|<)\s*표\s*(?:&gt;|>)\s*</\s*p\s*>",
+                r"(?:&lt;|<)\s*표\s*(?:&gt;|>)",
+            ],
+        ),
+        (
+            r"조\s*건",
+            [
+                r"<\s*p\s*>\s*(?:&lt;|<)\s*조\s*건\s*(?:&gt;|>)\s*</\s*p\s*>",
+                r"(?:&lt;|<)\s*조\s*건\s*(?:&gt;|>)",
+            ],
+        ),
+    ]
+
+    for marker_word, patterns in markers:
+        # question에 해당 단어가 없으면 refer에서 제거
+        if not re.search(marker_word, question):
+            for pattern in patterns:
+                refer = re.sub(pattern, "", refer, flags=re.IGNORECASE)
+
+    fixed_data["refer"] = refer.strip()
+    return fixed_data
+
+
+def wrap_choice_latex(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
+    """선택지가 영어/숫자/기호만 있고 $가 0-1개면 $로 감쌉니다."""
+    choice_fields = ["choice1", "choice2", "choice3", "choice4", "choice5"]
+
+    for field in choice_fields:
+        content = fixed_data.get(field)
+        if not content or not isinstance(content, str):
+            continue
+
+        # HTML 태그 제거 후 텍스트만 추출
+        text_only = re.sub(r"<[^>]+>", "", content).strip()
+        if not text_only:
+            continue
+
+        # $ 개수 확인
+        dollar_count = content.count("$")
+
+        # $가 0개 또는 1개이고, 영문/숫자/수학기호만 있는지 확인
+        if dollar_count <= 1:
+            # 한글 체크 (유니코드 범위: \uAC00-\uD7A3)
+            if re.search(r"[\uAC00-\uD7A3]", text_only):
+                continue
+
+            # 영문자, 숫자, 수학 기호만 있는지 확인
+            math_content_pattern = r"^[\s\w\d\+\-\*/\^=<>\(\)\[\]\{\},\.]+$"
+            if re.match(math_content_pattern, text_only):
+                # HTML 태그가 복잡하면 스킵
+                if "<" in content and ">" in content:
+                    continue
+
+                # $가 없고, 텍스트가 있으면 감싸기
+                if dollar_count == 0 and len(text_only) > 0:
+                    fixed_data[field] = f"${text_only}$"
+
+    return fixed_data
+
+
+def normalize_reference_text(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
+    """'표 참고', '그래프 참고' 등을 '해설 참고'로 통일합니다."""
+    patterns = [
+        (r"표\s*참고", "해설 참고"),
+        (r"그래프\s*참고", "해설 참고"),
+        (r"그림\s*참고", "해설 참고"),
+        (r"도표\s*참고", "해설 참고"),
+        (r"표를\s*참고", "해설을 참고"),
+        (r"그래프를\s*참고", "해설을 참고"),
+        (r"그림을\s*참고", "해설을 참고"),
+    ]
+
+    # answer와 solution 필드에서만 적용
+    fields = ["answer", "solution"]
+
+    for field in fields:
+        content = fixed_data.get(field)
+        if not content or not isinstance(content, str):
+            continue
+
+        for pattern, replacement in patterns:
+            content = re.sub(pattern, replacement, content)
+
+        fixed_data[field] = content
+
+    return fixed_data
+
+
 def process_single_problem(problem: Dict[str, Any]) -> Dict[str, Any]:
     # 단일 문제 처리를 위한 래퍼 함수 (병렬 실행용)
     fixed_data = fix_content_with_llm(problem)
 
     # 후처리 로직 적용
+    fixed_data = restore_missing_images(problem, fixed_data)
     fixed_data = normalize_answer(fixed_data)
     fixed_data = unescape_html_tags(fixed_data)
     fixed_data = normalize_refer_view_header(fixed_data)
+    fixed_data = remove_refer_markers(fixed_data)
     fixed_data = normalize_html_wrappers(fixed_data)
+    fixed_data = wrap_choice_latex(fixed_data)
+    fixed_data = normalize_reference_text(fixed_data)
 
     return {
         "original_id": problem.get("id"),
