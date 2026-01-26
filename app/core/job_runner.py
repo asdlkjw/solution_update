@@ -97,6 +97,9 @@ class JobRunner:
         if isinstance(original, dict):
             group_id = original.get("group_id")
 
+        has_error = isinstance(fixed, dict) and "error" in fixed
+        review_status = "BAD" if has_error else "GOOD"
+
         with get_connection() as conn:
             conn.execute(
                 """
@@ -107,7 +110,7 @@ class JobRunner:
                     original_json,
                     fixed_json,
                     human_review
-                ) VALUES (?, ?, ?, ?, ?, 'GOOD')
+                ) VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 (
                     job_id,
@@ -117,6 +120,7 @@ class JobRunner:
                     json.dumps(fixed, ensure_ascii=False)
                     if fixed is not None
                     else None,
+                    review_status,
                 ),
             )
             conn.commit()
