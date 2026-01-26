@@ -19,7 +19,7 @@ async def get_job_results(job_id: int):
             SELECT id, job_id, original_id, group_id, original_json, fixed_json, human_review, created_at, updated_at
             FROM results
             WHERE job_id = ?
-            ORDER BY id ASC
+            ORDER BY group_id ASC
             """,
             (job_id,),
         )
