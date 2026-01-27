@@ -908,6 +908,32 @@ def normalize_reference_text(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
     return fixed_data
 
 
+def remove_duplicate_reference_div(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
+    """refer 필드에서 보기 뒤의 중복 reference div를 제거합니다.
+
+    패턴:
+    <div class="reference"><p>보기</p></div><div class="reference">
+    → <div class="reference"><p>보기</p>
+
+    보기 변형: 보기, 보 기, 보  기, <보기>, [보 기], &lt;보기&gt; 등
+    """
+    content = fixed_data.get("refer")
+    if not content or not isinstance(content, str):
+        return fixed_data
+
+    pattern = (
+        r'(<div\s+class="reference">\s*<p>\s*'
+        r"(?:&lt;|[<\[]|\()?"
+        r"\s*보\s*기\s*"
+        r"(?:&gt;|[>\]]|\))?"
+        r"\s*</p>)"
+        r'\s*</div>\s*<div\s+class="reference">'
+    )
+
+    fixed_data["refer"] = re.sub(pattern, r"\1", content)
+    return fixed_data
+
+
 def process_single_problem(problem: Dict[str, Any]) -> Dict[str, Any]:
     # 단일 문제 처리를 위한 래퍼 함수 (병렬 실행용)
     fixed_data = fix_content_with_llm(problem)
@@ -923,6 +949,7 @@ def process_single_problem(problem: Dict[str, Any]) -> Dict[str, Any]:
     fixed_data = separate_image_div(fixed_data)
     fixed_data = wrap_latex_content(fixed_data)
     fixed_data = normalize_reference_text(fixed_data)
+    fixed_data = remove_duplicate_reference_div(fixed_data)
 
     return {
         "original_id": problem.get("id"),
