@@ -444,6 +444,28 @@
                         </button>
                     </div>
                 </div>
+
+                <!-- Image Generation Section -->
+                <div class="bad-list-container" style="margin-top: 20px;">
+                    <button id="btn-generate-images" class="btn" style="width: 100%; border-color: var(--accent-color); color: var(--accent-color);" onclick="generateImages()">
+                        이미지 생성
+                    </button>
+                    <div id="img-job-container" style="display: none; margin-top: 15px;">
+                        <div class="bad-list-label" style="color: var(--good-color);">
+                            <span id="img-job-status">생성된 Job ID</span>
+                        </div>
+                        <textarea id="img-job-list" class="bad-list-textarea" readonly onclick="this.select()"></textarea>
+                        <button id="btn-copy-jobs" class="btn" style="width: 100%; border-color: var(--good-color); color: var(--good-color);" onclick="copyJobIds()">
+                            Job ID 복사
+                        </button>
+                    </div>
+                    <div id="img-fail-container" style="display: none; margin-top: 15px;">
+                        <div class="bad-list-label">
+                            <span id="img-fail-status">실패한 Problem ID</span>
+                        </div>
+                        <textarea id="img-fail-list" class="bad-list-textarea" readonly onclick="this.select()"></textarea>
+                    </div>
+                </div>
             </div>
             <div class="modal-actions">
                 <button class="btn btn-submit" onclick="closeResultModal()">닫기</button>
@@ -703,6 +725,110 @@
                 }, 2000);
             };
             
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(showSuccess).catch(() => {
+                    textarea.select();
+                    document.execCommand('copy');
+                    showSuccess();
+                });
+            } else {
+                textarea.select();
+                textarea.setSelectionRange(0, 99999);
+                document.execCommand('copy');
+                showSuccess();
+            }
+        }
+
+        async function generateImages() {
+            const btn = document.getElementById('btn-generate-images');
+            const jobContainer = document.getElementById('img-job-container');
+            const jobTextarea = document.getElementById('img-job-list');
+            const jobStatus = document.getElementById('img-job-status');
+            const failContainer = document.getElementById('img-fail-container');
+            const failTextarea = document.getElementById('img-fail-list');
+            const failStatus = document.getElementById('img-fail-status');
+
+            const goodProblemIds = new Set();
+            DATA.forEach(item => {
+                if (reviewStates[item.result_id] === 'GOOD') {
+                    if (item.original_id !== undefined && item.original_id !== null) {
+                        goodProblemIds.add(item.original_id);
+                    }
+                }
+            });
+
+            const problemIds = Array.from(goodProblemIds);
+            if (problemIds.length === 0) {
+                alert('GOOD으로 마킹된 문제가 없습니다.');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = '생성 중...';
+
+            const results = await Promise.allSettled(
+                problemIds.map(async (id) => {
+                    const response = await fetch('https://class.day/img-conv/api/render', {
+                        method: 'POST',
+                        headers: {
+                            'accept': 'application/json',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ problem_id: id, deduplicate: true })
+                    });
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const data = await response.json();
+                    return { problem_id: id, job_id: data.job_id };
+                })
+            );
+
+            const successJobs = [];
+            const failedIds = [];
+
+            results.forEach((result, index) => {
+                if (result.status === 'fulfilled' && result.value.job_id) {
+                    successJobs.push(result.value.job_id);
+                } else {
+                    failedIds.push(problemIds[index]);
+                }
+            });
+
+            if (successJobs.length > 0) {
+                jobContainer.style.display = 'block';
+                jobTextarea.value = successJobs.join('\n');
+                jobStatus.textContent = `생성된 Job ID (${successJobs.length}건)`;
+            } else {
+                jobContainer.style.display = 'none';
+            }
+
+            if (failedIds.length > 0) {
+                failContainer.style.display = 'block';
+                failTextarea.value = failedIds.join('\n');
+                failStatus.textContent = `실패한 Problem ID (${failedIds.length}건)`;
+            } else {
+                failContainer.style.display = 'none';
+            }
+
+            btn.textContent = '생성 완료';
+        }
+
+        function copyJobIds() {
+            const textarea = document.getElementById('img-job-list');
+            const text = textarea.value;
+            const btn = document.getElementById('btn-copy-jobs');
+            const originalText = btn.textContent;
+
+            const showSuccess = () => {
+                btn.textContent = '복사 완료!';
+                btn.style.background = 'var(--good-color)';
+                btn.style.color = '#000';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '';
+                    btn.style.color = '';
+                }, 2000);
+            };
+
             if (navigator.clipboard && window.isSecureContext) {
                 navigator.clipboard.writeText(text).then(showSuccess).catch(() => {
                     textarea.select();
