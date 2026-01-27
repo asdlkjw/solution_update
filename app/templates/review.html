@@ -766,30 +766,28 @@
             btn.disabled = true;
             btn.textContent = '생성 중...';
 
-            const results = await Promise.allSettled(
-                problemIds.map(async (id) => {
-                    const response = await fetch('https://class.day/img-conv/api/render', {
-                        method: 'POST',
-                        headers: {
-                            'accept': 'application/json',
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ problem_id: id, deduplicate: true })
-                    });
-                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                    const data = await response.json();
-                    return { problem_id: id, job_id: data.job_id };
-                })
-            );
+            const response = await fetch('/render-images', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ problem_ids: problemIds, deduplicate: true })
+            });
 
+            if (!response.ok) {
+                alert('이미지 생성 요청 실패');
+                btn.textContent = '이미지 생성';
+                btn.disabled = false;
+                return;
+            }
+
+            const data = await response.json();
             const successJobs = [];
             const failedIds = [];
 
-            results.forEach((result, index) => {
-                if (result.status === 'fulfilled' && result.value.job_id) {
-                    successJobs.push(result.value.job_id);
+            data.results.forEach(result => {
+                if (result.success && result.job_id) {
+                    successJobs.push(result.job_id);
                 } else {
-                    failedIds.push(problemIds[index]);
+                    failedIds.push(result.problem_id);
                 }
             });
 
