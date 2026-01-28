@@ -934,6 +934,30 @@ def remove_duplicate_reference_div(fixed_data: Dict[str, Any]) -> Dict[str, Any]
     return fixed_data
 
 
+def add_displaystyle_to_binom(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
+    fields = [
+        "question",
+        "refer",
+        "choice1",
+        "choice2",
+        "choice3",
+        "choice4",
+        "choice5",
+        "answer",
+        "solution",
+    ]
+
+    for field in fields:
+        content = fixed_data.get(field)
+        if not content or not isinstance(content, str):
+            continue
+
+        pattern = r"(?<!displaystyle )\\binom"
+        fixed_data[field] = re.sub(pattern, r"\\displaystyle \\binom", content)
+
+    return fixed_data
+
+
 def process_single_problem(problem: Dict[str, Any]) -> Dict[str, Any]:
     # 단일 문제 처리를 위한 래퍼 함수 (병렬 실행용)
     fixed_data = fix_content_with_llm(problem)
@@ -950,6 +974,7 @@ def process_single_problem(problem: Dict[str, Any]) -> Dict[str, Any]:
     fixed_data = wrap_latex_content(fixed_data)
     fixed_data = normalize_reference_text(fixed_data)
     fixed_data = remove_duplicate_reference_div(fixed_data)
+    fixed_data = add_displaystyle_to_binom(fixed_data)
 
     return {
         "original_id": problem.get("id"),
