@@ -282,6 +282,17 @@
             border-radius: 2px;
             font-size: 0.7rem;
             font-weight: bold;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s;
+        }
+        
+        .id-badge:hover {
+            background: var(--good-color);
+        }
+        
+        .id-badge.copied {
+            background: var(--good-color);
         }
         
         ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -532,7 +543,7 @@
                 <div class="panel">
                     <div class="panel-header">
                         <span>${title}</span>
-                        <span class="id-badge">${badge}</span>
+                        <span class="id-badge" onclick="copyBadgeValue(this)">${badge}</span>
                     </div>
                     <div class="panel-content">
                         ${html}
@@ -706,6 +717,30 @@
 
         function closeResultModal() {
             document.getElementById('result-modal').classList.remove('show');
+        }
+
+        function copyBadgeValue(element) {
+            const text = element.textContent;
+            const match = text.match(/[\d]+/);
+            if (!match) return;
+            
+            const value = match[0];
+            
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(value).then(() => {
+                    element.classList.add('copied');
+                    setTimeout(() => element.classList.remove('copied'), 500);
+                });
+            } else {
+                const temp = document.createElement('textarea');
+                temp.value = value;
+                document.body.appendChild(temp);
+                temp.select();
+                document.execCommand('copy');
+                document.body.removeChild(temp);
+                element.classList.add('copied');
+                setTimeout(() => element.classList.remove('copied'), 500);
+            }
         }
 
         function copyBadGroupIds() {
