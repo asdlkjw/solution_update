@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
 from app.db.sqlite import init_db
@@ -20,6 +21,14 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Sisyphus Problem Fixer", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
