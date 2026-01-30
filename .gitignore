@@ -47,3 +47,5 @@ fixed_results.json
 !app/templates/*.html
 *.csv
 !group_ids.csv
+db/
+*.db
