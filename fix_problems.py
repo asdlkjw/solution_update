@@ -320,6 +320,44 @@ def unescape_html_tags(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
     return fixed_data
 
 
+LATEX_CONTROL_CHAR_SUFFIXES = {
+    "\t": ("t", ["imes", "ext", "frac"]),
+    "\r": ("r", ["ight"]),
+    "\f": ("f", ["rac"]),
+    "\v": ("v", ["dots"]),
+    "\b": ("b", ["egin"]),
+    "\a": ("a", ["lpha"]),
+    "\n": ("n", ["abla", "eq", "ot"]),
+}
+
+LATEX_CONTROL_CHAR_FIELDS = [
+    "question",
+    "refer",
+    "choice1",
+    "choice2",
+    "choice3",
+    "choice4",
+    "choice5",
+    "answer",
+    "solution",
+]
+
+
+def restore_latex_control_char_commands(text: str) -> str:
+    for control_char, (prefix, suffixes) in LATEX_CONTROL_CHAR_SUFFIXES.items():
+        for suffix in suffixes:
+            text = text.replace(f"{control_char}{suffix}", f"\\{prefix}{suffix}")
+    return text
+
+
+def restore_latex_control_char_fields(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
+    for field in LATEX_CONTROL_CHAR_FIELDS:
+        value = fixed_data.get(field)
+        if isinstance(value, str):
+            fixed_data[field] = restore_latex_control_char_commands(value)
+    return fixed_data
+
+
 def normalize_refer_view_header(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
     question = fixed_data.get("question")
     if not isinstance(question, str):
@@ -351,6 +389,7 @@ def process_single_problem(problem: Dict[str, Any]) -> Dict[str, Any]:
     # 후처리 로직 적용
     fixed_data = normalize_answer(fixed_data)
     fixed_data = unescape_html_tags(fixed_data)
+    fixed_data = restore_latex_control_char_fields(fixed_data)
     fixed_data = normalize_refer_view_header(fixed_data)
     fixed_data = normalize_html_wrappers(fixed_data)
 
