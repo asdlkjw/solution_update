@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sisyphus Reviewer // Job {{ job_id }}</title>
+    <title>Sisyphus Reviewer</title>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Syncopate:wght@700&display=swap" rel="stylesheet">
     <script>
     window.MathJax = {
@@ -168,6 +168,59 @@
             color: #000;
         }
 
+        /* Filter Toggle */
+        .filter-toggle {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            background: var(--bg-primary);
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+        }
+
+        .filter-btn {
+            padding: 4px 10px;
+            font-size: 0.7rem;
+            border: 1px solid var(--border-color);
+            background: transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .filter-btn.active {
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        .filter-btn:hover:not(.active) {
+            border-color: var(--text-primary);
+            color: var(--text-primary);
+        }
+
+        .filter-empty {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .review-btn.unverified {
+            border-color: var(--diff-color);
+            color: var(--diff-color);
+        }
+
+        .review-btn.unverified.active {
+            background: var(--diff-color);
+            color: #000;
+        }
+
         #app {
             flex: 1;
             display: flex;
@@ -224,6 +277,22 @@
             letter-spacing: 1px;
         }
 
+        .fixed-field-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+
+        .fixed-field-toggle input {
+            accent-color: var(--accent-color);
+        }
+
+        .fixed-field-toggle span {
+            color: var(--text-secondary);
+        }
+
         .field-content {
             font-size: 0.95rem;
             line-height: 1.8;
@@ -255,7 +324,6 @@
         }
 
         .field-choice {
-            padding: 6px 0;
             background: rgba(255, 255, 255, 0.02);
             border-radius: 3px;
             margin: 4px 0;
@@ -270,7 +338,6 @@
         }
 
         .field-solution {
-            padding: 10px 0;
             background: rgba(0, 0, 0, 0.15);
             border-radius: 3px;
             padding: 10px;
@@ -367,6 +434,7 @@
             color: var(--text-secondary);
         }
 
+
         .bad-list-container {
             margin-top: 20px;
             text-align: left;
@@ -409,19 +477,26 @@
             <button id="btn-prev" class="btn" onclick="prevPage()">← Prev</button>
             <span id="page-indicator" class="page-indicator">Loading...</span>
             <button id="btn-next" class="btn" onclick="nextPage()">Next →</button>
+            <div class="filter-toggle">
+                <span class="review-label">Filter:</span>
+                <button class="filter-btn active" data-filter="ALL" onclick="applyFilter('ALL')">ALL</button>
+                <button class="filter-btn" data-filter="BAD" onclick="applyFilter('BAD')">BAD</button>
+                <button class="filter-btn" data-filter="UNVERIFIED" onclick="applyFilter('UNVERIFIED')">UNVF</button>
+            </div>
             <div class="review-toggle">
                 <span class="review-label">Review:</span>
                 <button class="review-btn good active" onclick="setReview('GOOD')">GOOD (1)</button>
                 <button class="review-btn bad" onclick="setReview('BAD')">BAD (2)</button>
+                <button class="review-btn unverified" onclick="setReview('UNVERIFIED')">UNVERIFIED (3)</button>
             </div>
             <button id="btn-submit" class="btn btn-submit" onclick="openSubmitModal()">최종 제출</button>
         </div>
     </header>
-    
+
     <div id="app"></div>
 
     <div class="hint-box" style="position: fixed; bottom: 20px; left: 20px; z-index: 100;">
-        💡 키보드 단축키: ← → (네비게이션) | 1 (GOOD) | 2 (BAD)
+        💡 키보드 단축키: ← → (네비게이션) | 1 (GOOD) | 2 (BAD) | 3 (UNVERIFIED)
     </div>
 
     <div id="submit-modal" class="modal">
@@ -457,6 +532,30 @@
                     </div>
                 </div>
 
+                <div class="bad-list-container">
+                    <div class="bad-list-label" style="color: var(--diff-color);">
+                        <span id="result-unverified-status">UNVERIFIED 항목</span>
+                    </div>
+                    <div id="result-unverified-container" style="display: none;">
+                        <textarea id="result-unverified-list" class="bad-list-textarea" readonly onclick="this.select()"></textarea>
+                        <button id="btn-copy-unverified" class="btn" style="width: 100%; border-color: var(--diff-color); color: var(--diff-color);" onclick="copyUnverifiedGroupIds()">
+                            UNVERIFIED 리스트 복사
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bad-list-container">
+                    <div class="bad-list-label" style="color: var(--accent-color);">
+                        <span id="result-partial-status">부분 업데이트 항목</span>
+                    </div>
+                    <div id="result-partial-container" style="display: none;">
+                        <textarea id="result-partial-list" class="bad-list-textarea" readonly onclick="this.select()"></textarea>
+                        <button id="btn-copy-partial" class="btn" style="width: 100%; border-color: var(--accent-color); color: var(--accent-color);" onclick="copyPartialGroupIds()">
+                            부분 업데이트 리스트 복사
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Image Generation Section -->
                 <div class="bad-list-container" style="margin-top: 20px;">
                     <button id="btn-generate-images" class="btn" style="width: 100%; border-color: var(--accent-color); color: var(--accent-color);" onclick="generateImages()">
@@ -486,11 +585,40 @@
     </div>
 
     <script>
-        const jobId = {{ job_id }};
+        function getJobIdFromPath() {
+            const path = window.location.pathname;
+            const match = path.match(/(\d+)(?:\/)?$/);
+            if (!match) {
+                return null;
+            }
+            const parsed = Number.parseInt(match[1], 10);
+            if (Number.isNaN(parsed)) {
+                return null;
+            }
+            return parsed;
+        }
+
+        const jobId = getJobIdFromPath();
         let DATA = [];
-        let reviewStates = {}; // { result_id: 'GOOD' | 'BAD' }
+        let reviewStates = {}; // { result_id: 'GOOD' | 'BAD' | 'UNVERIFIED' }
+        let updateFieldsMap = {}; // { result_id: ['type', 'question', ...] }
         let currentIndex = 0;
         let isSubmitted = false;
+        let activeFilter = 'ALL';
+        let filteredIndices = [];
+
+        const UPDATE_FIELDS = [
+            'type',
+            'question',
+            'refer',
+            'choice1',
+            'choice2',
+            'choice3',
+            'choice4',
+            'choice5',
+            'answer',
+            'solution'
+        ];
 
         // Load results from API
         async function loadResults() {
@@ -504,8 +632,12 @@
                 // Initialize review states (default: GOOD)
                 DATA.forEach(item => {
                     reviewStates[item.result_id] = item.human_review || 'GOOD';
+                    if (!updateFieldsMap[item.result_id]) {
+                        updateFieldsMap[item.result_id] = [...UPDATE_FIELDS];
+                    }
                 });
                 
+                rebuildFilteredIndices();
                 renderPage();
             } catch (error) {
                 console.error('Error loading results:', error);
@@ -513,18 +645,61 @@
             }
         }
 
-        function renderField(data, field, label, customClass) {
+        function rebuildFilteredIndices() {
+            if (activeFilter === 'ALL') {
+                filteredIndices = DATA.map((_, i) => i);
+            } else {
+                filteredIndices = [];
+                DATA.forEach((item, i) => {
+                    if (reviewStates[item.result_id] === activeFilter) {
+                        filteredIndices.push(i);
+                    }
+                });
+            }
+        }
+
+        function applyFilter(filter) {
+            activeFilter = filter;
+            rebuildFilteredIndices();
+
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.filter === filter) btn.classList.add('active');
+            });
+
+            if (filteredIndices.length > 0) {
+                // Jump to the nearest filtered item from current position
+                const pos = filteredIndices.findIndex(i => i >= currentIndex);
+                currentIndex = pos >= 0 ? filteredIndices[pos] : filteredIndices[0];
+            }
+            renderPage();
+        }
+
+        function renderField(data, field, label, customClass, options) {
             const value = data[field];
             if (value === null || value === undefined) return '';
+            const isFixed = options && options.isFixed;
+            const resultId = options && options.resultId;
+            let labelContent = label;
+            if (isFixed) {
+                const checked = isFieldSelected(resultId, field);
+                const disabledAttr = isSubmitted ? 'disabled' : '';
+                labelContent = `
+                    <label class="fixed-field-toggle">
+                        <input type="checkbox" class="update-field-toggle" data-result-id="${resultId}" data-field="${field}" ${checked ? 'checked' : ''} ${disabledAttr}>
+                        <span>${label}</span>
+                    </label>
+                `;
+            }
             return `
                 <div class="field-wrapper ${customClass || ''}">
-                    <div class="field-label">${label}</div>
+                    <div class="field-label">${labelContent}</div>
                     <div class="field-content">${value}</div>
                 </div>
             `;
         }
 
-        function renderPanel(data, title, badge) {
+        function renderPanel(data, title, badge, options) {
             const fields = [
                 { field: 'type', label: 'TYPE', class: 'field-type' },
                 { field: 'question', label: 'QUESTION', class: 'field-question' },
@@ -538,7 +713,7 @@
                 { field: 'solution', label: 'SOLUTION', class: 'field-solution' }
             ];
 
-            let html = fields.map(f => renderField(data, f.field, f.label, f.class)).join('');
+            let html = fields.map(f => renderField(data, f.field, f.label, f.class, options)).join('');
 
             return `
                 <div class="panel">
@@ -559,6 +734,14 @@
                 return;
             }
 
+            if (filteredIndices.length === 0) {
+                document.getElementById('app').innerHTML = `<div class="filter-empty">${activeFilter} 항목이 없습니다</div>`;
+                document.getElementById('page-indicator').innerText = `0 of 0 (total: ${DATA.length})`;
+                document.getElementById('btn-prev').disabled = true;
+                document.getElementById('btn-next').disabled = true;
+                return;
+            }
+
             const item = DATA[currentIndex];
             const app = document.getElementById('app');
             const groupId = item.original && item.original.group_id !== undefined && item.original.group_id !== null
@@ -566,9 +749,11 @@
                 : 'N/A';
 
             // Update controls
-            document.getElementById('page-indicator').innerText = `Problem ${currentIndex + 1} of ${DATA.length} (ID: ${item.original_id})`;
-            document.getElementById('btn-prev').disabled = currentIndex === 0 || isSubmitted;
-            document.getElementById('btn-next').disabled = currentIndex === DATA.length - 1 || isSubmitted;
+            const filteredPos = filteredIndices.indexOf(currentIndex);
+            const filterSuffix = activeFilter !== 'ALL' ? ` [${activeFilter}: ${filteredIndices.length}/${DATA.length}]` : '';
+            document.getElementById('page-indicator').innerText = `Problem ${filteredPos + 1} of ${filteredIndices.length}${filterSuffix} (ID: ${item.original_id})`;
+            document.getElementById('btn-prev').disabled = filteredPos <= 0 || isSubmitted;
+            document.getElementById('btn-next').disabled = filteredPos >= filteredIndices.length - 1 || isSubmitted;
 
             // Update review toggle buttons
             const currentReview = reviewStates[item.result_id];
@@ -587,8 +772,11 @@
             // Render Panels with HTML content
             app.innerHTML = `
                 ${renderPanel(item.original, 'ORIGINAL DATA', `GROUP_ID: ${groupId}`)}
-                ${renderPanel(item.fixed, 'FIXED DATA (LLM)', 'GEMINI 3.0')}
+                ${renderPanel(item.fixed, 'FIXED DATA (LLM)', 'GEMINI 3.0', { isFixed: true, resultId: item.result_id })}
             `;
+
+            bindUpdateFieldHandlers(item.result_id);
+            setFieldSelectionDisabled(isSubmitted);
 
             // Trigger MathJax rendering
             if (window.MathJax && window.MathJax.typesetPromise) {
@@ -598,10 +786,11 @@
 
         function setReview(state) {
             if (isSubmitted) return;
-            
+            if (filteredIndices.length === 0) return;
+
             const item = DATA[currentIndex];
             reviewStates[item.result_id] = state;
-            
+
             // Update buttons
             document.querySelectorAll('.review-btn').forEach(btn => {
                 btn.classList.remove('active');
@@ -609,18 +798,27 @@
                     btn.classList.add('active');
                 }
             });
+
+            // Rebuild filter if active (item may no longer match)
+            if (activeFilter !== 'ALL') {
+                rebuildFilteredIndices();
+            }
         }
 
         function prevPage() {
-            if (currentIndex > 0 && !isSubmitted) {
-                currentIndex--;
+            if (isSubmitted) return;
+            const pos = filteredIndices.indexOf(currentIndex);
+            if (pos > 0) {
+                currentIndex = filteredIndices[pos - 1];
                 renderPage();
             }
         }
 
         function nextPage() {
-            if (currentIndex < DATA.length - 1 && !isSubmitted) {
-                currentIndex++;
+            if (isSubmitted) return;
+            const pos = filteredIndices.indexOf(currentIndex);
+            if (pos < filteredIndices.length - 1) {
+                currentIndex = filteredIndices[pos + 1];
                 renderPage();
             }
         }
@@ -630,8 +828,9 @@
             
             const goodCount = Object.values(reviewStates).filter(v => v === 'GOOD').length;
             const badCount = Object.values(reviewStates).filter(v => v === 'BAD').length;
-            
-            document.getElementById('submit-stats').textContent = `GOOD: ${goodCount} | BAD: ${badCount}`;
+            const unverifiedCount = Object.values(reviewStates).filter(v => v === 'UNVERIFIED').length;
+
+            document.getElementById('submit-stats').textContent = `GOOD: ${goodCount} | BAD: ${badCount} | UNVERIFIED: ${unverifiedCount}`;
             document.getElementById('submit-modal').classList.add('show');
         }
 
@@ -655,10 +854,13 @@
                 
                 await Promise.all(updates);
                 
+                const updateFieldsPayload = getUpdateFieldsMap();
+
                 // Apply to production DB
                 const applyResponse = await fetch(`/jobs/${jobId}/apply`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ update_fields_map: updateFieldsPayload })
                 });
                 
                 if (!applyResponse.ok) throw new Error('Failed to apply changes');
@@ -669,22 +871,52 @@
                 closeSubmitModal();
                 
                 const badGroupIds = new Set();
+                const partialGroupIds = new Set();
+                const unverifiedGroupIds = new Set();
                 DATA.forEach(item => {
+                    const groupId = item.original && item.original.group_id !== undefined && item.original.group_id !== null
+                        ? item.original.group_id
+                        : null;
                     if (reviewStates[item.result_id] === 'BAD') {
-                        if (item.original && item.original.group_id !== undefined && item.original.group_id !== null) {
-                            badGroupIds.add(item.original.group_id);
+                        if (groupId !== null) {
+                            badGroupIds.add(groupId);
+                        }
+                    }
+                    if (reviewStates[item.result_id] === 'UNVERIFIED') {
+                        if (groupId !== null) {
+                            unverifiedGroupIds.add(groupId);
+                        }
+                    }
+                    if (reviewStates[item.result_id] === 'GOOD') {
+                        ensureUpdateFieldsMap(item.result_id);
+                        const selectedFields = updateFieldsMap[item.result_id];
+                        if (selectedFields.length > 0 && selectedFields.length < UPDATE_FIELDS.length) {
+                            if (groupId !== null) {
+                                partialGroupIds.add(groupId);
+                            }
                         }
                     }
                 });
-                
+
                 const sortedBadIds = Array.from(badGroupIds).sort((a, b) => {
                     return String(a).localeCompare(String(b), undefined, { numeric: true });
                 });
-                
-                openResultModal(result.updated_count, sortedBadIds);
+
+                const sortedPartialIds = Array.from(partialGroupIds).sort((a, b) => {
+                    return String(a).localeCompare(String(b), undefined, { numeric: true });
+                });
+
+                const sortedUnverifiedIds = Array.from(unverifiedGroupIds).sort((a, b) => {
+                    return String(a).localeCompare(String(b), undefined, { numeric: true });
+                });
+
+                openResultModal(result.updated_count, sortedBadIds, sortedPartialIds, sortedUnverifiedIds);
                 
                 document.getElementById('btn-submit').disabled = true;
-                document.querySelectorAll('.review-btn').forEach(btn => btn.disabled = true);
+                document.querySelectorAll('.review-btn').forEach(btn => {
+                    btn.disabled = true;
+                });
+                setFieldSelectionDisabled(true);
                 
             } catch (error) {
                 console.error('Submit error:', error);
@@ -692,14 +924,62 @@
             }
         }
 
-        function openResultModal(updatedCount, badIds) {
+        function setFieldSelectionDisabled(disabled) {
+            document.querySelectorAll('.update-field-toggle').forEach(input => {
+                input.disabled = disabled;
+            });
+        }
+
+        function isFieldSelected(resultId, field) {
+            ensureUpdateFieldsMap(resultId);
+            return updateFieldsMap[resultId].includes(field);
+        }
+
+        function ensureUpdateFieldsMap(resultId) {
+            if (!updateFieldsMap[resultId]) {
+                updateFieldsMap[resultId] = [...UPDATE_FIELDS];
+            }
+        }
+
+        function bindUpdateFieldHandlers(resultId) {
+            document.querySelectorAll(`.update-field-toggle[data-result-id="${resultId}"]`).forEach(input => {
+                input.addEventListener('change', () => syncUpdateFieldsForResult(resultId));
+            });
+        }
+
+        function syncUpdateFieldsForResult(resultId) {
+            const inputs = document.querySelectorAll(`.update-field-toggle[data-result-id="${resultId}"]`);
+            updateFieldsMap[resultId] = Array.from(inputs)
+                .filter(input => input.checked)
+                .map(input => input.dataset.field);
+        }
+
+        function getUpdateFieldsMap() {
+            const payload = {};
+            DATA.forEach(item => {
+                if (updateFieldsMap[item.result_id]) {
+                    payload[item.result_id] = updateFieldsMap[item.result_id];
+                }
+            });
+            return payload;
+        }
+
+        function openResultModal(updatedCount, badIds, partialIds, unverifiedIds) {
             const modal = document.getElementById('result-modal');
             document.getElementById('result-updated-count').textContent = `업데이트 성공: ${updatedCount}건`;
-            
+
             const badContainer = document.getElementById('result-bad-container');
             const badTextarea = document.getElementById('result-bad-list');
             const copyBtn = document.getElementById('btn-copy-bad');
             const statusLabel = document.getElementById('result-bad-status');
+            const unverifiedContainer = document.getElementById('result-unverified-container');
+            const unverifiedTextarea = document.getElementById('result-unverified-list');
+            const copyUnverifiedBtn = document.getElementById('btn-copy-unverified');
+            const unverifiedStatus = document.getElementById('result-unverified-status');
+            const partialContainer = document.getElementById('result-partial-container');
+            const partialTextarea = document.getElementById('result-partial-list');
+            const copyPartialBtn = document.getElementById('btn-copy-partial');
+            const partialStatus = document.getElementById('result-partial-status');
 
             if (badIds.length > 0) {
                 badContainer.style.display = 'block';
@@ -712,7 +992,31 @@
                 copyBtn.disabled = true;
                 statusLabel.textContent = 'BAD 없음';
             }
-            
+
+            if (unverifiedIds && unverifiedIds.length > 0) {
+                unverifiedContainer.style.display = 'block';
+                unverifiedTextarea.value = unverifiedIds.join('\n');
+                copyUnverifiedBtn.disabled = false;
+                unverifiedStatus.textContent = `UNVERIFIED 항목 (${unverifiedIds.length}건)`;
+            } else {
+                unverifiedContainer.style.display = 'none';
+                unverifiedTextarea.value = '';
+                copyUnverifiedBtn.disabled = true;
+                unverifiedStatus.textContent = 'UNVERIFIED 없음';
+            }
+
+            if (partialIds.length > 0) {
+                partialContainer.style.display = 'block';
+                partialTextarea.value = partialIds.join('\n');
+                copyPartialBtn.disabled = false;
+                partialStatus.textContent = `부분 업데이트 항목 (${partialIds.length}건)`;
+            } else {
+                partialContainer.style.display = 'none';
+                partialTextarea.value = '';
+                copyPartialBtn.disabled = true;
+                partialStatus.textContent = '부분 업데이트 없음';
+            }
+
             modal.classList.add('show');
         }
 
@@ -761,6 +1065,68 @@
                 }, 2000);
             };
             
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(showSuccess).catch(() => {
+                    textarea.select();
+                    document.execCommand('copy');
+                    showSuccess();
+                });
+            } else {
+                textarea.select();
+                textarea.setSelectionRange(0, 99999);
+                document.execCommand('copy');
+                showSuccess();
+            }
+        }
+
+        function copyPartialGroupIds() {
+            const textarea = document.getElementById('result-partial-list');
+            const text = textarea.value;
+            const btn = document.getElementById('btn-copy-partial');
+            const originalText = btn.textContent;
+
+            const showSuccess = () => {
+                btn.textContent = '복사 완료!';
+                btn.style.background = 'var(--good-color)';
+                btn.style.color = '#000';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '';
+                    btn.style.color = '';
+                }, 2000);
+            };
+
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(showSuccess).catch(() => {
+                    textarea.select();
+                    document.execCommand('copy');
+                    showSuccess();
+                });
+            } else {
+                textarea.select();
+                textarea.setSelectionRange(0, 99999);
+                document.execCommand('copy');
+                showSuccess();
+            }
+        }
+
+        function copyUnverifiedGroupIds() {
+            const textarea = document.getElementById('result-unverified-list');
+            const text = textarea.value;
+            const btn = document.getElementById('btn-copy-unverified');
+            const originalText = btn.textContent;
+
+            const showSuccess = () => {
+                btn.textContent = '복사 완료!';
+                btn.style.background = 'var(--good-color)';
+                btn.style.color = '#000';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '';
+                    btn.style.color = '';
+                }, 2000);
+            };
+
             if (navigator.clipboard && window.isSecureContext) {
                 navigator.clipboard.writeText(text).then(showSuccess).catch(() => {
                     textarea.select();
@@ -885,6 +1251,7 @@
             if (e.key === 'ArrowRight') nextPage();
             if (e.key === '1') setReview('GOOD');
             if (e.key === '2') setReview('BAD');
+            if (e.key === '3') setReview('UNVERIFIED');
         });
 
         document.addEventListener('keydown', (e) => {
@@ -895,7 +1262,12 @@
         });
 
         // Initialize
-        loadResults();
+        if (jobId === null) {
+            document.getElementById('app').innerHTML = '<div style="margin:auto;color:var(--bad-color)">Invalid job ID in URL.</div>';
+        } else {
+            document.title = `Sisyphus Reviewer // Job ${jobId}`;
+            loadResults();
+        }
     </script>
 </body>
 </html>
