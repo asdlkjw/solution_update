@@ -474,9 +474,11 @@
     <header>
         <h1><a href="/" class="site-title">Sisyphus Reviewer</a></h1>
         <div class="controls">
-            <button id="btn-prev" class="btn" onclick="prevPage()">← Prev</button>
+            <button id="btn-first" class="btn" onclick="firstPage()">⟪</button>
+            <button id="btn-prev" class="btn" onclick="prevPage()">←</button>
             <span id="page-indicator" class="page-indicator">Loading...</span>
-            <button id="btn-next" class="btn" onclick="nextPage()">Next →</button>
+            <button id="btn-next" class="btn" onclick="nextPage()">→</button>
+            <button id="btn-last" class="btn" onclick="lastPage()">⟫</button>
             <div class="filter-toggle">
                 <span class="review-label">Filter:</span>
                 <button class="filter-btn active" data-filter="ALL" onclick="applyFilter('ALL')">ALL</button>
@@ -496,7 +498,7 @@
     <div id="app"></div>
 
     <div class="hint-box" style="position: fixed; bottom: 20px; left: 20px; z-index: 100;">
-        💡 키보드 단축키: ← → (네비게이션) | 1 (GOOD) | 2 (BAD) | 3 (UNVERIFIED)
+        💡 키보드 단축키: ← → (이전/다음) | Home/End (처음/끝) | 1 (GOOD) | 2 (BAD) | 3 (UNVERIFIED)
     </div>
 
     <div id="submit-modal" class="modal">
@@ -734,8 +736,10 @@
             if (filteredIndices.length === 0) {
                 document.getElementById('app').innerHTML = `<div class="filter-empty">${activeFilter} 항목이 없습니다</div>`;
                 document.getElementById('page-indicator').innerText = `0 of 0 (total: ${DATA.length})`;
+                document.getElementById('btn-first').disabled = true;
                 document.getElementById('btn-prev').disabled = true;
                 document.getElementById('btn-next').disabled = true;
+                document.getElementById('btn-last').disabled = true;
                 return;
             }
 
@@ -749,8 +753,10 @@
             const filteredPos = filteredIndices.indexOf(currentIndex);
             const filterSuffix = activeFilter !== 'ALL' ? ` [${activeFilter}: ${filteredIndices.length}/${DATA.length}]` : '';
             document.getElementById('page-indicator').innerText = `Problem ${filteredPos + 1} of ${filteredIndices.length}${filterSuffix} (ID: ${item.original_id})`;
+            document.getElementById('btn-first').disabled = filteredPos <= 0 || isSubmitted;
             document.getElementById('btn-prev').disabled = filteredPos <= 0 || isSubmitted;
             document.getElementById('btn-next').disabled = filteredPos >= filteredIndices.length - 1 || isSubmitted;
+            document.getElementById('btn-last').disabled = filteredPos >= filteredIndices.length - 1 || isSubmitted;
 
             // Update review toggle buttons
             const currentReview = reviewStates[item.result_id];
@@ -802,6 +808,14 @@
             }
         }
 
+        function firstPage() {
+            if (isSubmitted) return;
+            if (filteredIndices.length > 0) {
+                currentIndex = filteredIndices[0];
+                renderPage();
+            }
+        }
+
         function prevPage() {
             if (isSubmitted) return;
             const pos = filteredIndices.indexOf(currentIndex);
@@ -816,6 +830,14 @@
             const pos = filteredIndices.indexOf(currentIndex);
             if (pos < filteredIndices.length - 1) {
                 currentIndex = filteredIndices[pos + 1];
+                renderPage();
+            }
+        }
+
+        function lastPage() {
+            if (isSubmitted) return;
+            if (filteredIndices.length > 0) {
+                currentIndex = filteredIndices[filteredIndices.length - 1];
                 renderPage();
             }
         }
@@ -1257,6 +1279,8 @@
         document.addEventListener('keydown', (e) => {
             if (isSubmitted) return;
             
+            if (e.key === 'Home') firstPage();
+            if (e.key === 'End') lastPage();
             if (e.key === 'ArrowLeft') prevPage();
             if (e.key === 'ArrowRight') nextPage();
             if (e.key === '1') setReview('GOOD');
