@@ -1,8 +1,11 @@
 import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Iterable, List
+from typing import List
 
-from app.core.fixer import fetch_problems, process_single_problem
+from app.core.fixer import fetch_problems
+from app.core.pipelines.registry import get_pipeline
+import app.core.pipelines.v1  # noqa: F401
+import app.core.pipelines.v2  # noqa: F401
 from app.db.sqlite import get_connection
 
 
@@ -11,12 +14,13 @@ class JobRunner:
         self.executor = ThreadPoolExecutor(max_workers=job_workers)
         self.item_workers = item_workers
 
-    def submit_job(self, job_id: int, input_type: str, input_value: str) -> None:
+    def submit_job(self, job_id: int, input_type: str, input_value: str, pipeline_version: str = "v1") -> None:
         parsed_ids = [int(x.strip()) for x in input_value.split(",") if x.strip()]
-        self.executor.submit(self._run_job, job_id, input_type, parsed_ids)
+        self.executor.submit(self._run_job, job_id, input_type, parsed_ids, pipeline_version)
 
-    def _run_job(self, job_id: int, input_type: str, input_value: List[int]) -> None:
+    def _run_job(self, job_id: int, input_type: str, input_value: List[int], pipeline_version: str = "v1") -> None:
         try:
+            process_fn = get_pipeline(pipeline_version)
             self._update_job_status(job_id, "running")
             problems = self._fetch_problem_data(input_type, input_value)
             total_count = len(problems)
@@ -28,7 +32,7 @@ class JobRunner:
 
             with ThreadPoolExecutor(max_workers=self.item_workers) as executor:
                 future_to_problem = {
-                    executor.submit(process_single_problem, problem): problem
+                    executor.submit(process_fn, problem): problem
                     for problem in problems
                 }
 
@@ -97,8 +101,39 @@ class JobRunner:
         if isinstance(original, dict):
             group_id = original.get("group_id")
 
+        judge_meta = fixed.get("_judge") if isinstance(fixed, dict) else None
+        if isinstance(judge_meta, dict):
+            judge_attempts = judge_meta.get("attempts", 1)
+            judge_pass = judge_meta.get("pass")
+        else:
+            judge_attempts = 1
+            judge_pass = None
+
+        judge_attempts_value = judge_attempts if isinstance(judge_attempts, int) else 1
+        judge_retry_increment = max(judge_attempts_value - 1, 0)
+        judge_fail_increment = 1 if judge_pass is False else 0
+
+        empty_src_removed = 0
+        if isinstance(fixed, dict):
+            empty_src_value = fixed.get("_img_empty_src_removed")
+            if isinstance(empty_src_value, int):
+                empty_src_removed = empty_src_value
+
         has_error = isinstance(fixed, dict) and "error" in fixed
-        review_status = "BAD" if has_error else "GOOD"
+
+        # Judge failed after all retries
+        judge_failed = False
+        if isinstance(judge_meta, dict) and judge_pass is False:
+            judge_failed = True
+
+        # Unreachable images removed count
+        img_unreachable_removed = 0
+        if isinstance(fixed, dict):
+            val = fixed.get("_img_unreachable_removed")
+            if isinstance(val, int):
+                img_unreachable_removed = val
+
+        review_status = "BAD" if (has_error or empty_src_removed >= 4 or judge_failed or img_unreachable_removed > 0) else "GOOD"
 
         with get_connection() as conn:
             conn.execute(
@@ -122,6 +157,17 @@ class JobRunner:
                     else None,
                     review_status,
                 ),
+            )
+            conn.execute(
+                """
+                UPDATE jobs
+                SET judge_processed_count = judge_processed_count + 1,
+                    judge_retry_count = judge_retry_count + ?,
+                    judge_fail_count = judge_fail_count + ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (judge_retry_increment, judge_fail_increment, job_id),
             )
             conn.commit()
 

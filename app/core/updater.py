@@ -3,7 +3,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, NoReturn, Tuple, cast
 
 import pymysql
 from dotenv import load_dotenv
@@ -11,22 +11,47 @@ from dotenv import load_dotenv
 env_path = Path(__file__).resolve().parents[2] / ".env"
 load_dotenv(dotenv_path=env_path)
 
-DB_HOST = os.getenv("DB_HOST")
 DB_PORT = os.getenv("DB_PROD_PORT")
-DB_USER = os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PROD_PASSWORD")
-DB_NAME = os.getenv("DB_NAME")
+
+
+def exit_with_error(message: str) -> NoReturn:
+    print(message, file=sys.stderr)
+    sys.exit(1)
 
 
 def get_db_connection():
     """Creates a database connection."""
     try:
+        try:
+            db_host = os.environ["DB_HOST"]
+        except KeyError:
+            exit_with_error("Error: DB_HOST is not set.")
+        if db_host == "":
+            exit_with_error("Error: DB_HOST is not set.")
+        try:
+            db_user = os.environ["DB_USER"]
+        except KeyError:
+            exit_with_error("Error: DB_USER is not set.")
+        if db_user == "":
+            exit_with_error("Error: DB_USER is not set.")
+        try:
+            db_password = os.environ["DB_PROD_PASSWORD"]
+        except KeyError:
+            exit_with_error("Error: DB_PROD_PASSWORD is not set.")
+        if db_password == "":
+            exit_with_error("Error: DB_PROD_PASSWORD is not set.")
+        try:
+            db_name = os.environ["DB_NAME"]
+        except KeyError:
+            exit_with_error("Error: DB_NAME is not set.")
+        if db_name == "":
+            exit_with_error("Error: DB_NAME is not set.")
         conn = pymysql.connect(
-            host=DB_HOST,
+            host=db_host,
             port=int(DB_PORT) if DB_PORT else 3306,
-            user=DB_USER,
-            password=DB_PASSWORD,
-            database=DB_NAME,
+            user=db_user,
+            password=str(db_password),
+            database=db_name,
             cursorclass=pymysql.cursors.DictCursor,
         )
         return conn
@@ -58,8 +83,8 @@ def update_problems_from_data(
 
     try:
         for item in data:
-            original_id = item.get("original_id")
-            fixed = item.get("fixed")
+            original_id = item["original_id"] if "original_id" in item else None
+            fixed = item["fixed"] if "fixed" in item else None
 
             # Basic Validation
             if not original_id or not fixed:
@@ -142,9 +167,34 @@ def update_problems_from_data(
     return updated_count, skipped_count
 
 
-def update_problems_from_results(results: List[Any]) -> Tuple[int, int]:
+def normalize_result_id(value: int | str) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError) as exc:
+        raise exc
+
+
+def normalize_update_fields_map(
+    update_fields_map: Dict[int | str, List[str]],
+) -> Dict[int, List[str]]:
+    normalized: Dict[int, List[str]] = {}
+    for result_id, fields in update_fields_map.items():
+        normalized_key = normalize_result_id(result_id)
+        normalized[normalized_key] = fields
+    return normalized
+
+
+def update_problems_from_results(
+    results: List[Any],
+    update_fields: List[str] | None = None,
+    update_fields_map: Dict[int | str, List[str]] | None = None,
+) -> Tuple[int, int]:
     conn = get_db_connection()
     cursor = conn.cursor()
+
+    normalized_update_fields_map: Dict[int, List[str]] | None = None
+    if update_fields_map is not None:
+        normalized_update_fields_map = normalize_update_fields_map(update_fields_map)
 
     updated_count = 0
     skipped_count = 0
@@ -158,12 +208,19 @@ def update_problems_from_results(results: List[Any]) -> Tuple[int, int]:
                 else row["fixed_json"]
             )
             human_review = row["human_review"]
+            result_id: int = normalize_result_id(row["id"])
+
+            if human_review == "BAD":
+                sql = "UPDATE problem SET human_review = %s WHERE id = %s"
+                cursor.execute(sql, (human_review, original_id))
+                updated_count += 1
+                continue
 
             if "error" in fixed_json:
                 skipped_count += 1
                 continue
 
-            fields_to_update = [
+            default_fields = [
                 "type",
                 "question",
                 "refer",
@@ -174,6 +231,26 @@ def update_problems_from_results(results: List[Any]) -> Tuple[int, int]:
                 "choice5",
                 "answer",
                 "solution",
+            ]
+
+            map_fields = None
+            if normalized_update_fields_map is not None:
+                normalized_result_id = cast(int, result_id)
+                if normalized_result_id in normalized_update_fields_map:
+                    map_fields = normalized_update_fields_map[normalized_result_id]
+
+            if map_fields is not None:
+                candidate_fields = map_fields
+            elif update_fields is not None:
+                candidate_fields = update_fields
+            else:
+                candidate_fields = default_fields
+
+            update_field_set = {
+                field for field in candidate_fields if field in default_fields
+            }
+            fields_to_update = [
+                field for field in default_fields if field in update_field_set
             ]
 
             update_clauses = []

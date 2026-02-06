@@ -556,11 +556,8 @@
                     </div>
                 </div>
 
-                <!-- Image Generation Section -->
+                <!-- Image Generation Section (auto-populated after submit) -->
                 <div class="bad-list-container" style="margin-top: 20px;">
-                    <button id="btn-generate-images" class="btn" style="width: 100%; border-color: var(--accent-color); color: var(--accent-color);" onclick="generateImages()">
-                        이미지 생성
-                    </button>
                     <div id="img-job-container" style="display: none; margin-top: 15px;">
                         <div class="bad-list-label" style="color: var(--good-color);">
                             <span id="img-job-status">생성된 Job ID</span>
@@ -839,6 +836,13 @@
         }
 
         async function submitReview() {
+            // Show loading state on confirm modal
+            const confirmBtn = document.querySelector('#submit-modal .btn-submit');
+            const cancelBtn = document.querySelector('#submit-modal .btn-cancel');
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = '처리 중...';
+            cancelBtn.disabled = true;
+
             try {
                 // Update each result's human_review
                 const updates = [];
@@ -851,9 +855,9 @@
                         })
                     );
                 }
-                
+
                 await Promise.all(updates);
-                
+
                 const updateFieldsPayload = getUpdateFieldsMap();
 
                 // Apply to production DB
@@ -862,14 +866,17 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ update_fields_map: updateFieldsPayload })
                 });
-                
+
                 if (!applyResponse.ok) throw new Error('Failed to apply changes');
-                
+
                 const result = await applyResponse.json();
-                
+
+                // Auto generate images
+                const imageResults = await generateImages();
+
                 isSubmitted = true;
                 closeSubmitModal();
-                
+
                 const badGroupIds = new Set();
                 const partialGroupIds = new Set();
                 const unverifiedGroupIds = new Set();
@@ -910,17 +917,22 @@
                     return String(a).localeCompare(String(b), undefined, { numeric: true });
                 });
 
-                openResultModal(result.updated_count, sortedBadIds, sortedPartialIds, sortedUnverifiedIds);
-                
+                openResultModal(result.updated_count, sortedBadIds, sortedPartialIds, sortedUnverifiedIds, imageResults);
+
                 document.getElementById('btn-submit').disabled = true;
                 document.querySelectorAll('.review-btn').forEach(btn => {
                     btn.disabled = true;
                 });
                 setFieldSelectionDisabled(true);
-                
+
             } catch (error) {
                 console.error('Submit error:', error);
                 alert('제출 실패: ' + error.message);
+            } finally {
+                // Reset confirm modal buttons
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = '확인';
+                cancelBtn.disabled = false;
             }
         }
 
@@ -964,7 +976,7 @@
             return payload;
         }
 
-        function openResultModal(updatedCount, badIds, partialIds, unverifiedIds) {
+        function openResultModal(updatedCount, badIds, partialIds, unverifiedIds, imageResults) {
             const modal = document.getElementById('result-modal');
             document.getElementById('result-updated-count').textContent = `업데이트 성공: ${updatedCount}건`;
 
@@ -1015,6 +1027,30 @@
                 partialTextarea.value = '';
                 copyPartialBtn.disabled = true;
                 partialStatus.textContent = '부분 업데이트 없음';
+            }
+
+            // Populate image generation results
+            const jobContainer = document.getElementById('img-job-container');
+            const jobTextarea = document.getElementById('img-job-list');
+            const jobStatus = document.getElementById('img-job-status');
+            const failContainer = document.getElementById('img-fail-container');
+            const failTextarea = document.getElementById('img-fail-list');
+            const failStatus = document.getElementById('img-fail-status');
+
+            if (imageResults && imageResults.successJobs.length > 0) {
+                jobContainer.style.display = 'block';
+                jobTextarea.value = imageResults.successJobs.join('\n');
+                jobStatus.textContent = `생성된 Job ID (${imageResults.successJobs.length}건)`;
+            } else {
+                jobContainer.style.display = 'none';
+            }
+
+            if (imageResults && imageResults.failedIds.length > 0) {
+                failContainer.style.display = 'block';
+                failTextarea.value = imageResults.failedIds.join('\n');
+                failStatus.textContent = `실패한 Problem ID (${imageResults.failedIds.length}건)`;
+            } else {
+                failContainer.style.display = 'none';
             }
 
             modal.classList.add('show');
@@ -1142,14 +1178,6 @@
         }
 
         async function generateImages() {
-            const btn = document.getElementById('btn-generate-images');
-            const jobContainer = document.getElementById('img-job-container');
-            const jobTextarea = document.getElementById('img-job-list');
-            const jobStatus = document.getElementById('img-job-status');
-            const failContainer = document.getElementById('img-fail-container');
-            const failTextarea = document.getElementById('img-fail-list');
-            const failStatus = document.getElementById('img-fail-status');
-
             const goodProblemIds = new Set();
             DATA.forEach(item => {
                 if (reviewStates[item.result_id] === 'GOOD') {
@@ -1161,55 +1189,37 @@
 
             const problemIds = Array.from(goodProblemIds);
             if (problemIds.length === 0) {
-                alert('GOOD으로 마킹된 문제가 없습니다.');
-                return;
+                return { successJobs: [], failedIds: [] };
             }
 
-            btn.disabled = true;
-            btn.textContent = '생성 중...';
+            try {
+                const response = await fetch('/render-images', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ problem_ids: problemIds, deduplicate: true })
+                });
 
-            const response = await fetch('/render-images', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ problem_ids: problemIds, deduplicate: true })
-            });
-
-            if (!response.ok) {
-                alert('이미지 생성 요청 실패');
-                btn.textContent = '이미지 생성';
-                btn.disabled = false;
-                return;
-            }
-
-            const data = await response.json();
-            const successJobs = [];
-            const failedIds = [];
-
-            data.results.forEach(result => {
-                if (result.success && result.job_id) {
-                    successJobs.push(result.job_id);
-                } else {
-                    failedIds.push(result.problem_id);
+                if (!response.ok) {
+                    return { successJobs: [], failedIds: problemIds };
                 }
-            });
 
-            if (successJobs.length > 0) {
-                jobContainer.style.display = 'block';
-                jobTextarea.value = successJobs.join('\n');
-                jobStatus.textContent = `생성된 Job ID (${successJobs.length}건)`;
-            } else {
-                jobContainer.style.display = 'none';
+                const data = await response.json();
+                const successJobs = [];
+                const failedIds = [];
+
+                data.results.forEach(result => {
+                    if (result.success && result.job_id) {
+                        successJobs.push(result.job_id);
+                    } else {
+                        failedIds.push(result.problem_id);
+                    }
+                });
+
+                return { successJobs, failedIds };
+            } catch (error) {
+                console.error('Image generation error:', error);
+                return { successJobs: [], failedIds: problemIds };
             }
-
-            if (failedIds.length > 0) {
-                failContainer.style.display = 'block';
-                failTextarea.value = failedIds.join('\n');
-                failStatus.textContent = `실패한 Problem ID (${failedIds.length}건)`;
-            } else {
-                failContainer.style.display = 'none';
-            }
-
-            btn.textContent = '생성 완료';
         }
 
         function copyJobIds() {

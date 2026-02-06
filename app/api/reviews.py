@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from app.db.sqlite import get_connection
 from app.core.updater import update_problems_from_results
-from app.models.schemas import ApplyResponse
+from app.models.schemas import ApplyRequest, ApplyResponse
 
 router = APIRouter()
 
@@ -62,7 +62,7 @@ async def render_images(request: ImageRenderRequest):
 
 
 @router.post("/jobs/{job_id}/apply")
-async def apply_job_results(job_id: int):
+async def apply_job_results(job_id: int, request: ApplyRequest | None = None):
     conn = get_connection()
     try:
         cursor = conn.cursor()
@@ -83,14 +83,18 @@ async def apply_job_results(job_id: int):
             """
             SELECT id, original_id, fixed_json, human_review
             FROM results
-            WHERE job_id = ? AND human_review = 'GOOD'
+            WHERE job_id = ? AND human_review IN ('GOOD', 'BAD')
             ORDER BY id ASC
             """,
             (job_id,),
         )
         results = cursor.fetchall()
 
-        updated_count, skipped_count = update_problems_from_results(results)
+        update_fields = request.update_fields if request else None
+        update_fields_map = request.update_fields_map if request else None
+        updated_count, skipped_count = update_problems_from_results(
+            results, update_fields=update_fields, update_fields_map=update_fields_map
+        )
 
         return {
             "updated_count": updated_count,

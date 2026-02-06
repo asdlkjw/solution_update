@@ -8,6 +8,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any, Dict, List, Literal
+from urllib.parse import urlsplit, urlunsplit
 
 import pymysql
 import pymysql.cursors
@@ -24,11 +25,24 @@ DB_PORT = os.getenv("DB_PROD_PORT")
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PROD_PASSWORD")
 DB_NAME = os.getenv("DB_NAME")
+ENABLE_LT_SPACING_FIX = os.getenv("ENABLE_LT_SPACING_FIX", "1").lower() not in {
+    "0",
+    "false",
+    "no",
+}
 
 MODEL_NAME = "google/gemini-3-flash-preview"
+JUDGE_MODEL_NAME = MODEL_NAME
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 PROMPT_TEMPLATE_PATH = Path(__file__).resolve().parents[2] / "prompt_template.json"
 REPORT_TEMPLATE_PATH = Path(__file__).resolve().parents[2] / "report_template.html"
+JUDGE_SYSTEM_PROMPT = (
+    "너는 수학 문제 수정 결과를 검수하는 심사자다. 원본과 수정본을 비교해서 품질을 판단한다. "
+    "다음 항목을 엄격히 확인하라: 필수 조건 누락(특히 question/refer), "
+    "question이 없는데 refer만 존재, LaTeX 수식 깨짐, HTML 태그 불완전/잘못된 중첩, "
+    "가독성 저하(문장 붕괴, 의미 모호). 통과면 pass=true와 매우 짧은 reason을 주고, "
+    "실패면 pass=false와 짧고 명확한 이유를 한국어로 적어라."
+)
 
 
 def read_group_ids_from_csv(csv_path: str) -> List[int]:
@@ -117,7 +131,9 @@ def fetch_problems(
         conn.close()
 
 
-def fix_content_with_llm(problem_data: Dict[str, Any]) -> Dict[str, Any]:
+def fix_content_with_llm(
+    problem_data: Dict[str, Any], judge_feedback: str | None = None
+) -> Dict[str, Any]:
     # OpenRouter Gemini 모델을 사용하여 문제 내용을 수정합니다.
 
     # LLM 입력용 필드 필터링
@@ -185,19 +201,22 @@ def fix_content_with_llm(problem_data: Dict[str, Any]) -> Dict[str, Any]:
         "additionalProperties": False,
     }
 
+    user_content = prompts["user"].format(
+        json_data=json.dumps(serialized_data, indent=2, ensure_ascii=False)
+    )
+    if judge_feedback:
+        user_content = f"{user_content}\n\n[이전 심사 피드백]\n{judge_feedback}"
+
     payload = {
         "model": MODEL_NAME,
         "temperature": 0.4,
         "max_tokens": 4000,
         "top_p": 0.95,
+        "thinking_level": "high",
+        "reasoning": {"effort": "medium" if judge_feedback else "low"},
         "messages": [
             {"role": "system", "content": prompts["system"]},
-            {
-                "role": "user",
-                "content": prompts["user"].format(
-                    json_data=json.dumps(serialized_data, indent=2, ensure_ascii=False)
-                ),
-            },
+            {"role": "user", "content": user_content},
         ],
         "response_format": {
             "type": "json_schema",
@@ -275,6 +294,95 @@ def fix_content_with_llm(problem_data: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def judge_fixed_output(
+    original: Dict[str, Any], fixed: Dict[str, Any]
+) -> Dict[str, Any]:
+    judge_schema = {
+        "type": "object",
+        "properties": {
+            "pass": {"type": "boolean"},
+            "reason": {"type": "string"},
+        },
+        "required": ["pass", "reason"],
+        "additionalProperties": False,
+    }
+
+    original_payload = {
+        "question": original.get("question"),
+        "refer": original.get("refer"),
+        "choice1": original.get("choice1"),
+        "choice2": original.get("choice2"),
+        "choice3": original.get("choice3"),
+        "choice4": original.get("choice4"),
+        "choice5": original.get("choice5"),
+    }
+    fixed_payload = {
+        "question": fixed.get("question"),
+        "refer": fixed.get("refer"),
+        "choice1": fixed.get("choice1"),
+        "choice2": fixed.get("choice2"),
+        "choice3": fixed.get("choice3"),
+        "choice4": fixed.get("choice4"),
+        "choice5": fixed.get("choice5"),
+        "answer": fixed.get("answer"),
+        "solution": fixed.get("solution"),
+    }
+
+    user_content = json.dumps(
+        {"original": original_payload, "fixed": fixed_payload},
+        ensure_ascii=False,
+        indent=2,
+    )
+
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://github.com/code-yeongyu/sisyphus",
+        "X-Title": "Problem Fix Script",
+    }
+
+    payload = {
+        "model": JUDGE_MODEL_NAME,
+        "temperature": 0.1,
+        "max_tokens": 800,
+        "top_p": 0.95,
+        "thinking_level": "high",
+        "reasoning": {"effort": "low"},
+        "messages": [
+            {"role": "system", "content": JUDGE_SYSTEM_PROMPT},
+            {"role": "user", "content": user_content},
+        ],
+        "response_format": {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "judge_result",
+                "strict": True,
+                "schema": judge_schema,
+            },
+        },
+    }
+
+    try:
+        response = requests.post(
+            OPENROUTER_URL, headers=headers, json=payload, timeout=45
+        )
+        response.raise_for_status()
+        result = response.json()
+        if "choices" not in result:
+            error_msg = (
+                f"Invalid API response format (missing 'choices'). Response: {result}"
+            )
+            return {"pass": True, "reason": f"judge_error: {error_msg}"}
+        content = result["choices"][0]["message"]["content"]
+        return json.loads(content)
+    except requests.RequestException as e:
+        return {"pass": True, "reason": f"judge_error: {e}"}
+    except json.JSONDecodeError as e:
+        return {"pass": True, "reason": f"judge_error: {e}"}
+    except Exception as e:
+        return {"pass": True, "reason": f"judge_error: {e}"}
+
+
 def normalize_answer(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
     if fixed_data.get("type") != "multiple_choice":
         return fixed_data
@@ -310,6 +418,57 @@ def normalize_html_wrappers(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
         match = re.match(pattern, content, re.DOTALL | re.IGNORECASE)
         if match:
             fixed_data[field] = match.group(1).strip()
+
+    return fixed_data
+
+
+def wrap_short_answer_with_math_delimiters(
+    fixed_data: Dict[str, Any],
+) -> Dict[str, Any]:
+    if fixed_data.get("type") == "multiple_choice":
+        return fixed_data
+
+    answer = fixed_data.get("answer")
+    if not isinstance(answer, str):
+        return fixed_data
+
+    answer = answer.strip()
+    if not answer:
+        return fixed_data
+
+    if "$" in answer or r"\(" in answer or r"\)" in answer:
+        return fixed_data
+
+    if SHORT_ANSWER_ALLOWED_RE.fullmatch(answer):
+        fixed_data["answer"] = f"${answer}$"
+
+    return fixed_data
+
+
+EMPTY_BRACKET_RE = re.compile(r"\[\s*\]")
+HTML_TAG_SPLIT_RE = re.compile(r"(<[^>]+>)")
+LT_FOLLOWED_BY_ALPHA_RE = re.compile(r"<(?=[A-Za-z])")
+SHORT_ANSWER_ALLOWED_RE = re.compile(
+    r"^[0-9A-Za-z\s\+\-\*/=<>^_.,:;!?()\[\]{}~`'\"|\\%&#!]+$"
+)
+
+
+def normalize_empty_brackets(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
+    fields = [
+        "question",
+        "refer",
+        "choice1",
+        "choice2",
+        "choice3",
+        "choice4",
+        "choice5",
+        "solution",
+    ]
+
+    for field in fields:
+        content = fixed_data.get(field)
+        if isinstance(content, str):
+            fixed_data[field] = EMPTY_BRACKET_RE.sub("[  ]", content)
 
     return fixed_data
 
@@ -475,6 +634,38 @@ def unescape_html_tags(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
     return fixed_data
 
 
+def normalize_lt_spacing(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
+    if not ENABLE_LT_SPACING_FIX:
+        return fixed_data
+
+    fields = [
+        "question",
+        "refer",
+        "choice1",
+        "choice2",
+        "choice3",
+        "choice4",
+        "choice5",
+        "answer",
+        "solution",
+    ]
+
+    for field in fields:
+        content = fixed_data.get(field)
+        if not isinstance(content, str):
+            continue
+        parts = HTML_TAG_SPLIT_RE.split(content)
+        for idx, part in enumerate(parts):
+            if not part:
+                continue
+            if HTML_TAG_SPLIT_RE.fullmatch(part):
+                continue
+            parts[idx] = LT_FOLLOWED_BY_ALPHA_RE.sub("< ", part)
+        fixed_data[field] = "".join(parts)
+
+    return fixed_data
+
+
 LATEX_CONTROL_CHAR_SUFFIXES = {
     "\t": ("t", ["imes", "ext", "frac"]),
     "\r": ("r", ["ight"]),
@@ -497,6 +688,14 @@ LATEX_CONTROL_CHAR_FIELDS = [
     "solution",
 ]
 
+DOUBLE_BACKSLASH_RE = re.compile(r"\\\\(?=[A-Za-z\[\]\(\)])")
+
+IMAGE_CHECK_CACHE: Dict[str, bool] = {}
+IMAGE_EXTENSIONS = {".bmp", ".png", ".jpg", ".jpeg", ".gif", ".webp"}
+IMG_TAG_RE = re.compile(r"<img\b[^>]*>", re.IGNORECASE)
+IMG_SRC_RE = re.compile(r"src\s*=\s*([\"'])([^\"']+)\1", re.IGNORECASE)
+IMG_EMPTY_SRC_RE = re.compile(r"src\s*=\s*([\"'])\s*\1", re.IGNORECASE)
+
 
 def restore_latex_control_char_commands(text: str) -> str:
     for control_char, (prefix, suffixes) in LATEX_CONTROL_CHAR_SUFFIXES.items():
@@ -510,6 +709,156 @@ def restore_latex_control_char_fields(fixed_data: Dict[str, Any]) -> Dict[str, A
         value = fixed_data.get(field)
         if isinstance(value, str):
             fixed_data[field] = restore_latex_control_char_commands(value)
+    return fixed_data
+
+
+def normalize_latex_backslashes(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
+    fields = [
+        "question",
+        "refer",
+        "choice1",
+        "choice2",
+        "choice3",
+        "choice4",
+        "choice5",
+        "answer",
+        "solution",
+    ]
+
+    for field in fields:
+        content = fixed_data.get(field)
+        if isinstance(content, str):
+            fixed_data[field] = DOUBLE_BACKSLASH_RE.sub(r"\\", content)
+
+    return fixed_data
+
+
+def _build_image_variants(url: str) -> List[str]:
+    parts = urlsplit(url)
+    path = parts.path or ""
+    if not path:
+        return [url]
+
+    base, ext = os.path.splitext(path)
+    candidates = [url]
+    for suffix in [".bmp", ".jpg", ".png"]:
+        if ext:
+            new_path = f"{base}{suffix}"
+        else:
+            new_path = f"{path}{suffix}"
+        candidates.append(
+            urlunsplit(
+                (parts.scheme, parts.netloc, new_path, parts.query, parts.fragment)
+            )
+        )
+
+    seen = set()
+    ordered = []
+    for candidate in candidates:
+        if candidate not in seen:
+            ordered.append(candidate)
+            seen.add(candidate)
+    return ordered
+
+
+def _is_image_renderable(url: str) -> bool:
+    cached = IMAGE_CHECK_CACHE.get(url)
+    if cached is not None:
+        return cached
+
+    try:
+        with requests.get(url, stream=True, timeout=5) as response:
+            if response.status_code >= 400:
+                IMAGE_CHECK_CACHE[url] = False
+                return False
+            content_type = response.headers.get("Content-Type")
+            content_type_lower = content_type.lower() if content_type else ""
+            if content_type_lower.startswith("image/"):
+                IMAGE_CHECK_CACHE[url] = True
+                return True
+            if not content_type_lower or content_type_lower.startswith(
+                "application/octet-stream"
+            ):
+                path = urlsplit(url).path
+                _, ext = os.path.splitext(path.lower())
+                is_image_ext = ext in IMAGE_EXTENSIONS
+                IMAGE_CHECK_CACHE[url] = is_image_ext
+                return is_image_ext
+            IMAGE_CHECK_CACHE[url] = False
+            return False
+    except requests.RequestException:
+        IMAGE_CHECK_CACHE[url] = False
+        return False
+
+    IMAGE_CHECK_CACHE[url] = True
+    return True
+
+
+def _resolve_image_src(src: str) -> str | None:
+    cleaned = src.strip()
+    if not cleaned:
+        return None
+    if cleaned.lower() in {"null", "error"}:
+        return None
+    if cleaned.startswith("data:"):
+        return cleaned
+
+    parts = urlsplit(cleaned)
+    if parts.scheme not in {"http", "https"}:
+        return cleaned
+
+    for candidate in _build_image_variants(cleaned):
+        if _is_image_renderable(candidate):
+            return candidate
+    return None
+
+
+def validate_image_tags(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
+    fields = [
+        "question",
+        "refer",
+        "choice1",
+        "choice2",
+        "choice3",
+        "choice4",
+        "choice5",
+        "solution",
+    ]
+
+    empty_src_removed = 0
+    unreachable_removed = 0
+
+    def replace_tag(match: re.Match[str]) -> str:
+        nonlocal empty_src_removed, unreachable_removed
+        tag = match.group(0)
+        if IMG_EMPTY_SRC_RE.search(tag):
+            empty_src_removed += 1
+            return ""
+        src_match = IMG_SRC_RE.search(tag)
+        if not src_match:
+            return ""
+
+        src_value = src_match.group(2).strip()
+        if not src_value:
+            return ""
+        resolved = _resolve_image_src(src_value)
+        if resolved is None:
+            unreachable_removed += 1
+            return ""
+        if resolved == src_value:
+            return tag
+
+        quote = src_match.group(1)
+        return IMG_SRC_RE.sub(f"src={quote}{resolved}{quote}", tag, count=1)
+
+    for field in fields:
+        content = fixed_data.get(field)
+        if isinstance(content, str):
+            fixed_data[field] = IMG_TAG_RE.sub(replace_tag, content)
+
+    fixed_data["_img_empty_src_removed"] = empty_src_removed
+    fixed_data["_img_unreachable_removed"] = unreachable_removed
+
     return fixed_data
 
 
@@ -998,22 +1347,69 @@ def add_displaystyle_to_binom(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
 
 def process_single_problem(problem: Dict[str, Any]) -> Dict[str, Any]:
     # 단일 문제 처리를 위한 래퍼 함수 (병렬 실행용)
-    fixed_data = fix_content_with_llm(problem)
+    max_regen_attempts = 2
+    judge_feedback = None
+    judge_history = []
+    judge_result = {"pass": False, "reason": "unknown"}
+    fixed_data: Dict[str, Any] = {}
 
-    # 후처리 로직 적용
-    fixed_data = restore_missing_images(problem, fixed_data)
-    fixed_data = normalize_answer(fixed_data)
-    fixed_data = unescape_html_tags(fixed_data)
-    fixed_data = restore_latex_control_char_fields(fixed_data)
-    fixed_data = normalize_refer_view_header(fixed_data)
-    fixed_data = remove_refer_markers(fixed_data)
-    fixed_data = normalize_html_wrappers(fixed_data)
-    fixed_data = restore_field_div_classes(fixed_data)
-    fixed_data = separate_image_div(fixed_data)
-    fixed_data = wrap_latex_content(fixed_data)
-    fixed_data = normalize_reference_text(fixed_data)
-    fixed_data = remove_duplicate_reference_div(fixed_data)
-    fixed_data = add_displaystyle_to_binom(fixed_data)
+    for attempt in range(1, max_regen_attempts + 2):
+        fixed_data = fix_content_with_llm(problem, judge_feedback=judge_feedback)
+
+        if "error" in fixed_data:
+            judge_result = {
+                "pass": False,
+                "reason": f"fix_error: {fixed_data.get('error')}",
+            }
+            judge_history.append(
+                {
+                    "attempt": attempt,
+                    "pass": judge_result["pass"],
+                    "reason": judge_result["reason"],
+                }
+            )
+            break
+
+        # 후처리 로직 적용
+        fixed_data = restore_missing_images(problem, fixed_data)
+        fixed_data = validate_image_tags(fixed_data)
+        fixed_data = normalize_answer(fixed_data)
+        fixed_data = unescape_html_tags(fixed_data)
+        fixed_data = normalize_lt_spacing(fixed_data)
+        fixed_data = restore_latex_control_char_fields(fixed_data)
+        fixed_data = normalize_latex_backslashes(fixed_data)
+        fixed_data = normalize_refer_view_header(fixed_data)
+        fixed_data = remove_refer_markers(fixed_data)
+        fixed_data = normalize_html_wrappers(fixed_data)
+        fixed_data = wrap_short_answer_with_math_delimiters(fixed_data)
+        fixed_data = normalize_empty_brackets(fixed_data)
+        fixed_data = restore_field_div_classes(fixed_data)
+        fixed_data = separate_image_div(fixed_data)
+        fixed_data = wrap_latex_content(fixed_data)
+        fixed_data = normalize_reference_text(fixed_data)
+        fixed_data = remove_duplicate_reference_div(fixed_data)
+        fixed_data = add_displaystyle_to_binom(fixed_data)
+
+        judge_result = judge_fixed_output(problem, fixed_data)
+        judge_history.append(
+            {
+                "attempt": attempt,
+                "pass": judge_result["pass"],
+                "reason": judge_result["reason"],
+            }
+        )
+
+        if judge_result["pass"]:
+            break
+        judge_feedback = judge_result["reason"]
+
+    fixed_data["_judge"] = {
+        "pass": judge_result["pass"],
+        "reason": judge_result["reason"],
+        "attempts": len(judge_history),
+        "model": JUDGE_MODEL_NAME,
+        "history": judge_history,
+    }
 
     return {
         "original_id": problem.get("id"),
