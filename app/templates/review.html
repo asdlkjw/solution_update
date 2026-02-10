@@ -1354,8 +1354,8 @@
             
             if (e.key === 'Home') firstPage();
             if (e.key === 'End') lastPage();
-            if (e.key === 'ArrowLeft') prevPage();
-            if (e.key === 'ArrowRight') nextPage();
+            if (e.key === 'ArrowLeft' || e.code === 'KeyA' || e.key === 'a' || e.key === 'A') prevPage();
+            if (e.key === 'ArrowRight' || e.code === 'KeyD' || e.key === 'd' || e.key === 'D') nextPage();
             if (e.key === '1') setReview('GOOD');
             if (e.key === '2') setReview('BAD');
             if (e.key === '3') setReview('UNVERIFIED');
