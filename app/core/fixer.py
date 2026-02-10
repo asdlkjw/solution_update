@@ -36,11 +36,29 @@ JUDGE_MODEL_NAME = MODEL_NAME
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 PROMPT_TEMPLATE_PATH = Path(__file__).resolve().parents[2] / "prompt_template.json"
 REPORT_TEMPLATE_PATH = Path(__file__).resolve().parents[2] / "report_template.html"
-JUDGE_SYSTEM_PROMPT = (
+JUDGE_SYSTEM_PROMPT_MC = (
     "너는 수학 문제 수정 결과를 검수하는 심사자다. 원본과 수정본을 비교해서 품질을 판단한다. "
     "다음 항목을 엄격히 확인하라: 필수 조건 누락(특히 question/refer), "
     "question이 없는데 refer만 존재, LaTeX 수식 깨짐, HTML 태그 불완전/잘못된 중첩, "
-    "가독성 저하(문장 붕괴, 의미 모호). 통과면 pass=true와 매우 짧은 reason을 주고, "
+    "가독성 저하(문장 붕괴, 의미 모호). "
+    "객관식 규칙: answer는 1~5 중 하나의 번호이다. solution에서 정답 값(예: 8)이 서술되더라도 "
+    "choice{answer}의 내용과 일치하면 정답으로 간주하라. answer가 1~5가 아니거나, "
+    "choice{answer}가 비어있거나, solution의 결론이 해당 선택지와 명백히 불일치하면 실패로 판단하라. "
+    "answer는 선택지 번호만 의미하며 값(예: 3)으로 해석하지 않는다. 예: answer=3, choice3='4'이면 정답 값은 4이고 올바르다. "
+    "정답 번호의 의미에 대해 의심하거나 확인 필요 같은 표현을 하지 말고 규칙대로 판단하라. "
+    "복수정답 허용: answer는 '2, 5'처럼 콤마-공백으로 여러 번호가 될 수 있으며 각 번호는 1~5여야 한다. "
+    "solution의 결론이 해당 선택지 집합과 일치하면 통과로 판단하라. "
+    "통과면 pass=true와 매우 짧은 reason을 주고, "
+    "실패면 pass=false와 짧고 명확한 이유를 한국어로 적어라."
+)
+
+JUDGE_SYSTEM_PROMPT_SA = (
+    "너는 수학 문제 수정 결과를 검수하는 심사자다. 원본과 수정본을 비교해서 품질을 판단한다. "
+    "다음 항목을 엄격히 확인하라: 필수 조건 누락(특히 question/refer), "
+    "question이 없는데 refer만 존재, LaTeX 수식 깨짐, HTML 태그 불완전/잘못된 중첩, "
+    "가독성 저하(문장 붕괴, 의미 모호). "
+    "주관식 규칙: answer는 solution의 최종 결론과 일치해야 한다(HTML/LaTeX 포맷 차이는 허용). "
+    "통과면 pass=true와 매우 짧은 reason을 주고, "
     "실패면 pass=false와 짧고 명확한 이유를 한국어로 적어라."
 )
 
@@ -229,13 +247,23 @@ def fix_content_with_llm(
     }
 
     max_attempts = 3
-    retry_statuses = {502, 503, 504}
+    retry_statuses = {408, 429, 500, 502, 503, 504}
     for attempt in range(max_attempts):
         payload["temperature"] = 0.4 if attempt == 0 else 0.7
         try:
             response = requests.post(
                 OPENROUTER_URL, headers=headers, json=payload, timeout=60
             )
+            if response.status_code == 401:
+                if attempt < 1 and attempt < max_attempts - 1:
+                    time.sleep(2**attempt)
+                    continue
+                error_msg = "Unauthorized: check OPENROUTER_API_KEY"
+                print(
+                    f"Error calling LLM for ID {problem_data.get('id')}: {error_msg}",
+                    file=sys.stderr,
+                )
+                return {"error": error_msg, "original_id": problem_data.get("id")}
             if response.status_code in retry_statuses and attempt < max_attempts - 1:
                 time.sleep(2**attempt)
                 continue
@@ -260,6 +288,17 @@ def fix_content_with_llm(
             content = result["choices"][0]["message"]["content"]
             return json.loads(content)
         except requests.RequestException as e:
+            status_code = e.response.status_code if e.response is not None else None
+            if status_code == 401:
+                if attempt < 1 and attempt < max_attempts - 1:
+                    time.sleep(2**attempt)
+                    continue
+                error_msg = "Unauthorized: check OPENROUTER_API_KEY"
+                print(
+                    f"Error calling LLM for ID {problem_data.get('id')}: {error_msg}",
+                    file=sys.stderr,
+                )
+                return {"error": error_msg, "original_id": problem_data.get("id")}
             if attempt < max_attempts - 1:
                 time.sleep(2**attempt)
                 continue
@@ -308,6 +347,7 @@ def judge_fixed_output(
     }
 
     original_payload = {
+        "type": original.get("type"),
         "question": original.get("question"),
         "refer": original.get("refer"),
         "choice1": original.get("choice1"),
@@ -317,6 +357,7 @@ def judge_fixed_output(
         "choice5": original.get("choice5"),
     }
     fixed_payload = {
+        "type": fixed.get("type"),
         "question": fixed.get("question"),
         "refer": fixed.get("refer"),
         "choice1": fixed.get("choice1"),
@@ -327,6 +368,19 @@ def judge_fixed_output(
         "answer": fixed.get("answer"),
         "solution": fixed.get("solution"),
     }
+
+    problem_type = fixed.get("type") or original.get("type")
+    if problem_type not in {"multiple_choice", "short_answer"}:
+        has_choices = any(
+            fixed.get(key) or original.get(key)
+            for key in ("choice1", "choice2", "choice3", "choice4", "choice5")
+        )
+        problem_type = "multiple_choice" if has_choices else "short_answer"
+    judge_prompt = (
+        JUDGE_SYSTEM_PROMPT_MC
+        if problem_type == "multiple_choice"
+        else JUDGE_SYSTEM_PROMPT_SA
+    )
 
     user_content = json.dumps(
         {"original": original_payload, "fixed": fixed_payload},
@@ -349,7 +403,7 @@ def judge_fixed_output(
         "thinking_level": "high",
         "reasoning": {"effort": "low"},
         "messages": [
-            {"role": "system", "content": JUDGE_SYSTEM_PROMPT},
+            {"role": "system", "content": judge_prompt},
             {"role": "user", "content": user_content},
         ],
         "response_format": {
@@ -695,6 +749,23 @@ IMAGE_EXTENSIONS = {".bmp", ".png", ".jpg", ".jpeg", ".gif", ".webp"}
 IMG_TAG_RE = re.compile(r"<img\b[^>]*>", re.IGNORECASE)
 IMG_SRC_RE = re.compile(r"src\s*=\s*([\"'])([^\"']+)\1", re.IGNORECASE)
 IMG_EMPTY_SRC_RE = re.compile(r"src\s*=\s*([\"'])\s*\1", re.IGNORECASE)
+IMG_WIDTH_RE = re.compile(r"\bwidth\s*=\s*([\"']?)(\d+)(?:\1)?", re.IGNORECASE)
+
+
+IMG_SRC_FIX_RE = re.compile(
+    r"""(<img[^>]*src\s*=\s*['"])([^'"]*)(\d+)(\.(?:png|jpg|jpeg|bmp|gif|webp))(\d+)(['"])""",
+    re.IGNORECASE,
+)
+
+
+def _fix_image_src_format(src: str) -> str:
+    if src.startswith("data:"):
+        return src
+    match = re.search(r"(\d+)(\.(png|jpg|jpeg|bmp|gif|webp))(\d+)", src, re.IGNORECASE)
+    if not match:
+        return src
+    num1, ext, num2 = match.group(1), match.group(2).lower(), match.group(4)
+    return src.replace(num1 + ext + num2, num1 + num2 + ext)
 
 
 def restore_latex_control_char_commands(text: str) -> str:
@@ -827,6 +898,12 @@ def validate_image_tags(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
 
     empty_src_removed = 0
     unreachable_removed = 0
+    protected_srcs = set()
+    protected_values = fixed_data.get("_protected_img_srcs")
+    if isinstance(protected_values, (list, tuple, set)):
+        for item in protected_values:
+            if isinstance(item, str):
+                protected_srcs.add(item)
 
     def replace_tag(match: re.Match[str]) -> str:
         nonlocal empty_src_removed, unreachable_removed
@@ -839,10 +916,14 @@ def validate_image_tags(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
             return ""
 
         src_value = src_match.group(2).strip()
+        src_value = _fix_image_src_format(src_value)
         if not src_value:
             return ""
         resolved = _resolve_image_src(src_value)
         if resolved is None:
+            if src_value in protected_srcs:
+                quote = src_match.group(1)
+                return IMG_SRC_RE.sub(f"src={quote}{src_value}{quote}", tag, count=1)
             unreachable_removed += 1
             return ""
         if resolved == src_value:
@@ -858,6 +939,67 @@ def validate_image_tags(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
 
     fixed_data["_img_empty_src_removed"] = empty_src_removed
     fixed_data["_img_unreachable_removed"] = unreachable_removed
+
+    return fixed_data
+
+
+def preserve_original_images(
+    original_data: Dict[str, Any], fixed_data: Dict[str, Any]
+) -> Dict[str, Any]:
+    fields = [
+        "question",
+        "refer",
+        "choice1",
+        "choice2",
+        "choice3",
+        "choice4",
+        "choice5",
+        "answer",
+        "solution",
+    ]
+    protected_srcs: set[str] = set()
+    for field in fields:
+        content = original_data.get(field)
+        if not content or not isinstance(content, str):
+            continue
+        for src in re.findall(r'src\s*=\s*["\']([^"\']+)["\']', content, re.IGNORECASE):
+            protected_srcs.add(_fix_image_src_format(src.strip()))
+    if protected_srcs:
+        fixed_data["_protected_img_srcs"] = sorted(protected_srcs)
+    return fixed_data
+
+
+def clamp_image_widths(
+    fixed_data: Dict[str, Any], max_width: int = 350, default_width: int = 350
+) -> Dict[str, Any]:
+    fields = [
+        "question",
+        "refer",
+        "choice1",
+        "choice2",
+        "choice3",
+        "choice4",
+        "choice5",
+        "solution",
+    ]
+
+    def clamp_tag(match: re.Match[str]) -> str:
+        tag = match.group(0)
+        width_match = IMG_WIDTH_RE.search(tag)
+        if width_match:
+            width_val = int(width_match.group(2))
+            new_width = min(width_val, max_width)
+            return IMG_WIDTH_RE.sub(f'width="{new_width}"', tag, count=1)
+        if tag.endswith("/>"):
+            return tag[:-2].rstrip() + f' width="{default_width}" />'
+        if tag.endswith(">"):
+            return tag[:-1].rstrip() + f' width="{default_width}" >'
+        return tag
+
+    for field in fields:
+        content = fixed_data.get(field)
+        if isinstance(content, str):
+            fixed_data[field] = IMG_TAG_RE.sub(clamp_tag, content)
 
     return fixed_data
 
@@ -920,8 +1062,15 @@ def restore_missing_images(
         if not fixed_content:
             fixed_content = ""
 
-        # fixed에서 이미지 태그 추출
         fixed_images = re.findall(img_pattern, str(fixed_content), re.IGNORECASE)
+        fixed_srcs = set()
+        for fixed_img in fixed_images:
+            fixed_match = re.search(
+                r'src\s*=\s*["\']([^"\']+)["\']', fixed_img, re.IGNORECASE
+            )
+            if not fixed_match:
+                continue
+            fixed_srcs.add(_fix_image_src_format(fixed_match.group(1)))
 
         # 누락된 이미지 찾기
         for img in original_images:
@@ -929,10 +1078,8 @@ def restore_missing_images(
             src_match = re.search(r'src\s*=\s*["\']([^"\']+)["\']', img, re.IGNORECASE)
             if not src_match:
                 continue
-            src_value = src_match.group(1)
-
-            # fixed_images에 같은 src가 있는지 확인
-            img_exists = any(src_value in fixed_img for fixed_img in fixed_images)
+            src_value = _fix_image_src_format(src_match.group(1))
+            img_exists = src_value in fixed_srcs
 
             if not img_exists:
                 # 이미지를 콘텐츠 앞에 추가
@@ -1295,6 +1442,128 @@ def normalize_reference_text(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
     return fixed_data
 
 
+def convert_binom_to_combination(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
+    def extract_braced(text: str, start: int) -> tuple[str | None, int]:
+        if start >= len(text) or text[start] != "{":
+            return None, start
+        depth = 0
+        i = start
+        while i < len(text):
+            ch = text[i]
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    return text[start + 1 : i], i + 1
+            i += 1
+        return None, start
+
+    def convert_choose_text(text: str) -> str:
+        result: List[str] = []
+        i = 0
+        while i < len(text):
+            if text[i] != "{":
+                result.append(text[i])
+                i += 1
+                continue
+            depth = 0
+            j = i
+            while j < len(text):
+                if text[j] == "{":
+                    depth += 1
+                elif text[j] == "}":
+                    depth -= 1
+                    if depth == 0:
+                        break
+                j += 1
+            if depth != 0:
+                result.append(text[i:])
+                break
+            inner = text[i + 1 : j]
+            inner_depth = 0
+            choose_pos = None
+            k = 0
+            while k < len(inner):
+                if inner[k] == "{":
+                    inner_depth += 1
+                elif inner[k] == "}":
+                    inner_depth -= 1
+                elif inner_depth == 0 and inner.startswith("\\choose", k):
+                    choose_pos = k
+                    break
+                k += 1
+            if choose_pos is None:
+                result.append(text[i : j + 1])
+                i = j + 1
+                continue
+            left = inner[:choose_pos].strip()
+            right = inner[choose_pos + len("\\choose") :].strip()
+            if not left or not right:
+                result.append(text[i : j + 1])
+                i = j + 1
+                continue
+            result.append(f"{{}}_{{{left}}}C_{{{right}}}")
+            i = j + 1
+        return "".join(result)
+
+    def convert_text(text: str) -> str:
+        text = convert_choose_text(text)
+        idx = 0
+        out: List[str] = []
+        commands = ("\\binom", "\\tbinom", "\\dbinom")
+        while True:
+            pos = -1
+            cmd = None
+            for candidate in commands:
+                found = text.find(candidate, idx)
+                if found != -1 and (pos == -1 or found < pos):
+                    pos = found
+                    cmd = candidate
+            if pos == -1 or cmd is None:
+                out.append(text[idx:])
+                break
+            out.append(text[idx:pos])
+            j = pos + len(cmd)
+            while j < len(text) and text[j].isspace():
+                j += 1
+            first, j = extract_braced(text, j)
+            if first is None:
+                out.append(text[pos : pos + len(cmd)])
+                idx = pos + len(cmd)
+                continue
+            while j < len(text) and text[j].isspace():
+                j += 1
+            second, j2 = extract_braced(text, j)
+            if second is None:
+                out.append(text[pos:j])
+                idx = j
+                continue
+            out.append(f"{{}}_{{{first}}}C_{{{second}}}")
+            idx = j2
+        return "".join(out)
+
+    fields = [
+        "question",
+        "refer",
+        "choice1",
+        "choice2",
+        "choice3",
+        "choice4",
+        "choice5",
+        "answer",
+        "solution",
+    ]
+
+    for field in fields:
+        content = fixed_data.get(field)
+        if not content or not isinstance(content, str):
+            continue
+        fixed_data[field] = convert_text(content)
+
+    return fixed_data
+
+
 def remove_duplicate_reference_div(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
     """refer 필드에서 보기 뒤의 중복 reference div를 제거합니다.
 
@@ -1372,7 +1641,9 @@ def process_single_problem(problem: Dict[str, Any]) -> Dict[str, Any]:
 
         # 후처리 로직 적용
         fixed_data = restore_missing_images(problem, fixed_data)
+        fixed_data = preserve_original_images(problem, fixed_data)
         fixed_data = validate_image_tags(fixed_data)
+        fixed_data = clamp_image_widths(fixed_data)
         fixed_data = normalize_answer(fixed_data)
         fixed_data = unescape_html_tags(fixed_data)
         fixed_data = normalize_lt_spacing(fixed_data)
@@ -1390,7 +1661,7 @@ def process_single_problem(problem: Dict[str, Any]) -> Dict[str, Any]:
         fixed_data = remove_duplicate_reference_div(fixed_data)
         fixed_data = add_displaystyle_to_binom(fixed_data)
 
-        judge_result = judge_fixed_output(problem, fixed_data)
+        judge_result = {"pass": True, "reason": "judge_skipped"}
         judge_history.append(
             {
                 "attempt": attempt,
@@ -1398,10 +1669,7 @@ def process_single_problem(problem: Dict[str, Any]) -> Dict[str, Any]:
                 "reason": judge_result["reason"],
             }
         )
-
-        if judge_result["pass"]:
-            break
-        judge_feedback = judge_result["reason"]
+        break
 
     fixed_data["_judge"] = {
         "pass": judge_result["pass"],

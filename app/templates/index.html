@@ -85,6 +85,23 @@
             margin-bottom: 15px;
         }
 
+        .text-input {
+            width: 100%;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.9rem;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+
+        .text-input:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+
         textarea:focus {
             outline: none;
             border-color: var(--accent-color);
@@ -135,6 +152,49 @@
         .error.show {
             display: block;
         }
+
+        .pipeline-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .radio-label {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: inherit;
+            color: inherit;
+            text-transform: none;
+            letter-spacing: normal;
+            margin-bottom: 0;
+        }
+
+        .radio-label:has(input:checked) {
+            border-color: var(--accent-color);
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .radio-label input[type="radio"] {
+            accent-color: var(--accent-color);
+        }
+
+        .radio-text {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .radio-desc {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
     </style>
 </head>
 <body>
@@ -143,6 +203,31 @@
         <div class="subtitle">Math Problem Fixer</div>
 
         <form id="job-form">
+            <label>Pipeline Version</label>
+            <div class="pipeline-selector">
+                <label class="radio-label">
+                    <input type="radio" name="pipeline-version" value="v1" checked>
+                    <span class="radio-text">v1</span>
+                    <span class="radio-desc">기본 파이프라인</span>
+                </label>
+                <label class="radio-label">
+                    <input type="radio" name="pipeline-version" value="v2">
+                    <span class="radio-text">v2</span>
+                    <span class="radio-desc">실험적 파이프라인</span>
+                </label>
+            </div>
+
+            <div id="v2-password-container" style="display: none;">
+                <label for="v2-password">v2 Password</label>
+                <input
+                    type="password"
+                    id="v2-password"
+                    name="v2-password"
+                    class="text-input"
+                    placeholder="v2 비밀번호 입력"
+                />
+            </div>
+
             <label for="group-ids">Group IDs</label>
             <textarea 
                 id="group-ids" 
@@ -170,6 +255,20 @@
         const textarea = document.getElementById('group-ids');
         const submitBtn = document.getElementById('submit-btn');
         const errorMsg = document.getElementById('error-msg');
+        const v2PasswordContainer = document.getElementById('v2-password-container');
+        const v2PasswordInput = document.getElementById('v2-password');
+
+        const pipelineRadios = document.querySelectorAll('input[name="pipeline-version"]');
+        pipelineRadios.forEach((radio) => {
+            radio.addEventListener('change', () => {
+                if (radio.value === 'v2' && radio.checked) {
+                    v2PasswordContainer.style.display = 'block';
+                } else if (radio.value === 'v1' && radio.checked) {
+                    v2PasswordContainer.style.display = 'none';
+                    v2PasswordInput.value = '';
+                }
+            });
+        });
 
         function showError(message) {
             errorMsg.textContent = message;
@@ -221,15 +320,29 @@
                 submitBtn.textContent = '작업 생성 중...';
                 
                 // POST /jobs API 호출
+                const pipelineVersion = document.querySelector('input[name="pipeline-version"]:checked').value;
+                if (pipelineVersion === 'v2' && !v2PasswordInput.value.trim()) {
+                    showError('v2 비밀번호를 입력하세요.');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '실행';
+                    return;
+                }
+
+                const payload = {
+                    input_type: 'group_id',
+                    input_value: groupIds.join(','),
+                    pipeline_version: pipelineVersion
+                };
+                if (pipelineVersion === 'v2') {
+                    payload.v2_password = v2PasswordInput.value.trim();
+                }
+
                 const response = await fetch('/jobs', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        input_type: 'group_id',
-                        input_value: groupIds.join(',')
-                    })
+                    body: JSON.stringify(payload)
                 });
                 
                 if (!response.ok) {

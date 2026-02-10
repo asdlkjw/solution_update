@@ -11,4 +11,4 @@ echo "Installing dependencies..."
 uv pip install -e .
 
 echo "Starting Sisyphus server..."
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+uv run uvicorn app.main:app --host 0.0.0.0 --port 6888 --reload

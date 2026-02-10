@@ -112,6 +112,20 @@
             color: #000;
         }
 
+        .progress-bar.judge {
+            background: linear-gradient(90deg, #ffd166, #ff6b6b);
+            color: #0a0a0f;
+        }
+
+        .section-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 10px 0 8px;
+            text-align: left;
+        }
+
         .stats {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -175,18 +189,30 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+
+        .pipeline-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border: 1px solid var(--accent-color);
+            border-radius: 3px;
+            font-size: 0.7rem;
+            color: var(--accent-color);
+            margin-left: 8px;
+            text-transform: uppercase;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Processing...</h1>
-        <div class="job-id">Job ID: <span id="job-id">{{ job_id }}</span></div>
+        <div class="job-id">Job ID: <span id="job-id">{{ job_id }}</span> <span class="pipeline-badge" id="pipeline-badge"></span></div>
 
         <div class="status" id="status">
             <span id="status-text">Queued</span>
             <span id="status-spinner" class="spinner"></span>
         </div>
 
+        <div class="section-label">Overall Progress</div>
         <div class="progress-bar-container">
             <div class="progress-bar" id="progress-bar">0%</div>
         </div>
@@ -204,6 +230,32 @@
                 <div class="stat-label">Errors</div>
                 <div class="stat-value" id="error-count">-</div>
             </div>
+            <div class="stat">
+                <div class="stat-label">Retry</div>
+                <div class="stat-value" id="retry-count">-</div>
+            </div>
+        </div>
+
+        <div id="judge-section" style="display: none;">
+            <div class="section-label">Judge Progress</div>
+            <div class="progress-bar-container">
+                <div class="progress-bar judge" id="judge-progress-bar">0%</div>
+            </div>
+
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-label">Judge Done</div>
+                    <div class="stat-value" id="judge-processed-count">-</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Judge Retry</div>
+                    <div class="stat-value" id="judge-retry-count">-</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Judge Fail</div>
+                    <div class="stat-value" id="judge-fail-count">-</div>
+                </div>
+            </div>
         </div>
 
         <div id="action-container"></div>
@@ -218,6 +270,12 @@
         const totalCountEl = document.getElementById('total-count');
         const processedCountEl = document.getElementById('processed-count');
         const errorCountEl = document.getElementById('error-count');
+        const retryCountEl = document.getElementById('retry-count');
+        const judgeProgressBar = document.getElementById('judge-progress-bar');
+        const judgeProcessedCountEl = document.getElementById('judge-processed-count');
+        const judgeRetryCountEl = document.getElementById('judge-retry-count');
+        const judgeFailCountEl = document.getElementById('judge-fail-count');
+        const judgeSection = document.getElementById('judge-section');
         const actionContainer = document.getElementById('action-container');
 
         let pollInterval;
@@ -254,7 +312,22 @@
                 totalCountEl.textContent = data.total_count || '-';
                 processedCountEl.textContent = data.processed_count || '-';
                 errorCountEl.textContent = data.error_count || '-';
-                
+                retryCountEl.textContent = data.judge_retry_count ?? '-';
+                judgeProcessedCountEl.textContent = data.judge_processed_count ?? '-';
+                judgeRetryCountEl.textContent = data.judge_retry_count ?? '-';
+                judgeFailCountEl.textContent = data.judge_fail_count ?? '-';
+
+                // Update pipeline badge
+                const pipelineBadge = document.getElementById('pipeline-badge');
+                if (data.pipeline_version) {
+                    pipelineBadge.textContent = data.pipeline_version;
+                }
+                if (data.pipeline_version === 'v2') {
+                    judgeSection.style.display = 'block';
+                } else {
+                    judgeSection.style.display = 'none';
+                }
+
                 // Update progress bar
                 let progress = 0;
                 if (data.total_count > 0) {
@@ -262,6 +335,17 @@
                 }
                 progressBar.style.width = `${progress}%`;
                 progressBar.textContent = `${progress}%`;
+
+                let judgeProgress = 0;
+                if (data.total_count > 0) {
+                    const judgeProcessed =
+                        typeof data.judge_processed_count === 'number'
+                            ? data.judge_processed_count
+                            : 0;
+                    judgeProgress = Math.round((judgeProcessed / data.total_count) * 100);
+                }
+                judgeProgressBar.style.width = `${judgeProgress}%`;
+                judgeProgressBar.textContent = `${judgeProgress}%`;
                 
                 // If done, show review button and stop polling
                 if (data.status === 'done') {

@@ -237,6 +237,12 @@
             border: 1px solid var(--border-color);
             border-radius: 4px;
             overflow: hidden;
+            transition: background 0.2s, border-color 0.2s;
+        }
+
+        .panel.is-bad {
+            background: rgba(255, 68, 68, 0.06);
+            border-color: rgba(255, 68, 68, 0.35);
         }
 
         .panel-header {
@@ -448,6 +454,47 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+        }
+
+        /* Judge Reason */
+        .judge-reason {
+            margin-top: 8px;
+            padding: 10px 12px;
+            border-top: 1px solid var(--border-color);
+            font-size: 0.8em;
+        }
+        .judge-reason-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+        .judge-status-badge {
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-weight: 600;
+            font-size: 0.85em;
+            letter-spacing: 0.05em;
+        }
+        .judge-status-badge.judge-pass {
+            background: rgba(0, 255, 136, 0.15);
+            color: var(--good-color);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+        }
+        .judge-status-badge.judge-fail {
+            background: rgba(255, 68, 68, 0.15);
+            color: var(--bad-color);
+            border: 1px solid rgba(255, 68, 68, 0.3);
+        }
+        .judge-meta {
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        .judge-reason-text {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            line-height: 1.8;
+            white-space: pre-wrap;
         }
 
         .bad-list-textarea {
@@ -712,10 +759,29 @@
                 { field: 'solution', label: 'SOLUTION', class: 'field-solution' }
             ];
 
-            let html = fields.map(f => renderField(data, f.field, f.label, f.class, options)).join('');
+            let html = '';
 
+            // Judge reason at top (only for fixed panel with _judge data)
+            const judge = data._judge;
+            if (judge) {
+                const statusClass = judge.pass ? 'judge-pass' : 'judge-fail';
+                const statusText = judge.pass ? 'PASS' : 'FAIL';
+                html += `
+                    <div class="judge-reason ${statusClass}">
+                        <div class="judge-reason-header">
+                            <span class="judge-status-badge ${statusClass}">${statusText}</span>
+                            <span class="judge-meta">attempts: ${judge.attempts} · ${judge.model || ''}</span>
+                        </div>
+                        <div class="judge-reason-text">${judge.reason || ''}</div>
+                    </div>
+                `;
+            }
+
+            html += fields.map(f => renderField(data, f.field, f.label, f.class, options)).join('');
+
+            const extraClass = (options && options.extraClass) || '';
             return `
-                <div class="panel">
+                <div class="panel ${extraClass}">
                     <div class="panel-header">
                         <span>${title}</span>
                         <span class="id-badge" onclick="copyBadgeValue(this)">${badge}</span>
@@ -773,9 +839,10 @@
             });
 
             // Render Panels with HTML content
+            const badClass = currentReview === 'BAD' ? 'is-bad' : '';
             app.innerHTML = `
                 ${renderPanel(item.original, 'ORIGINAL DATA', `GROUP_ID: ${groupId}`)}
-                ${renderPanel(item.fixed, 'FIXED DATA (LLM)', 'GEMINI 3.0', { isFixed: true, resultId: item.result_id })}
+                ${renderPanel(item.fixed, 'FIXED DATA (LLM)', 'GEMINI 3.0', { isFixed: true, resultId: item.result_id, extraClass: badClass })}
             `;
 
             bindUpdateFieldHandlers(item.result_id);
@@ -801,6 +868,12 @@
                     btn.classList.add('active');
                 }
             });
+
+            // Toggle bad highlight on fixed panel only (second panel)
+            const panels = document.querySelectorAll('.panel');
+            if (panels.length > 1) {
+                panels[1].classList.toggle('is-bad', state === 'BAD');
+            }
 
             // Rebuild filter if active (item may no longer match)
             if (activeFilter !== 'ALL') {

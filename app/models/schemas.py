@@ -7,6 +7,7 @@ class JobCreateRequest(BaseModel):
     input_type: Literal["id", "group_id"]
     input_value: str
     pipeline_version: str = "v1"
+    v2_password: Optional[str] = None
 
 
 class JobResponse(BaseModel):
