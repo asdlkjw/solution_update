@@ -23,6 +23,7 @@ from app.core.fixer import (
     _fix_image_src_format,
     preserve_original_images,
     clamp_image_widths,
+    detect_latex_syntax_missing,
     validate_image_tags,
     normalize_answer,
     unescape_html_tags,
@@ -36,6 +37,7 @@ from app.core.fixer import (
     normalize_reference_text,
     add_displaystyle_to_binom,
     convert_binom_to_combination,
+    remove_stray_newline_escapes,
 )
 from app.core.pipelines.registry import register_pipeline
 
@@ -757,10 +759,12 @@ def process_single_problem_v2(problem: Dict[str, Any]) -> Dict[str, Any]:
         fixed_data = normalize_reference_text(fixed_data)  # V1 reuse
         fixed_data = restore_latex_control_char_fields(fixed_data)  # V1 reuse
         fixed_data = normalize_latex_backslashes(fixed_data)  # V1 reuse
+        fixed_data = remove_stray_newline_escapes(fixed_data)
         fixed_data = wrap_short_answer_with_math_delimiters(fixed_data)  # V1 reuse
         fixed_data = wrap_latex_content(fixed_data)  # V1 reuse
         fixed_data = convert_binom_to_combination(fixed_data)  # V1 reuse
         fixed_data = add_displaystyle_to_binom(fixed_data)  # V1 reuse
+        fixed_data = detect_latex_syntax_missing(fixed_data)
 
         # Judge
         judge_result = judge_fixed_output_v2(problem, fixed_data)

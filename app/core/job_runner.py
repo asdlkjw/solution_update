@@ -155,16 +155,27 @@ class JobRunner:
             if isinstance(val, int):
                 img_unreachable_removed = val
 
-        review_status = (
-            "BAD"
-            if (
-                has_error
-                or empty_src_removed >= 4
-                or judge_failed
-                or img_unreachable_removed > 0
-            )
-            else "GOOD"
-        )
+        bad_reasons: List[str] = []
+        existing_reasons: List[str] = []
+        if isinstance(fixed, dict):
+            stored_reasons = fixed.get("_auto_bad_reasons")
+            if isinstance(stored_reasons, list):
+                existing_reasons = [r for r in stored_reasons if isinstance(r, str)]
+        if has_error:
+            bad_reasons.append("fix_error")
+        if empty_src_removed >= 4:
+            bad_reasons.append(f"empty_img_src_removed>={empty_src_removed}")
+        if judge_failed:
+            bad_reasons.append("judge_failed")
+        if img_unreachable_removed > 0:
+            bad_reasons.append(f"img_unreachable_removed={img_unreachable_removed}")
+        for reason in existing_reasons:
+            if reason not in bad_reasons:
+                bad_reasons.append(reason)
+
+        review_status = "BAD" if bad_reasons else "GOOD"
+        if review_status == "BAD" and isinstance(fixed, dict):
+            fixed["_auto_bad_reasons"] = bad_reasons
 
         with get_connection() as conn:
             conn.execute(

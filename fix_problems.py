@@ -632,6 +632,27 @@ def normalize_latex_backslashes(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
     return fixed_data
 
 
+def remove_stray_newline_escapes(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
+    fields = [
+        "question",
+        "refer",
+        "choice1",
+        "choice2",
+        "choice3",
+        "choice4",
+        "choice5",
+        "answer",
+        "solution",
+    ]
+
+    for field in fields:
+        content = fixed_data.get(field)
+        if isinstance(content, str):
+            fixed_data[field] = re.sub(r"\\n(?![A-Za-z])", " ", content)
+
+    return fixed_data
+
+
 def _build_image_variants(url: str) -> List[str]:
     parts = urlsplit(url)
     path = parts.path or ""
@@ -758,6 +779,117 @@ def validate_image_tags(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
     return fixed_data
 
 
+def _replace_math_segments(text: str, placeholder: str = "◎") -> str:
+    patterns = [r"\$\$.*?\$\$", r"\$.*?\$", r"\\\(.*?\\\)"]
+    candidates: List[tuple[int, int]] = []
+    for pattern in patterns:
+        match = re.search(pattern, text, flags=re.DOTALL)
+        if match:
+            candidates.append((match.start(), match.end()))
+    if not candidates:
+        return text
+    start, end = sorted(candidates, key=lambda item: (item[0], item[1] - item[0]))[0]
+    return text[:start] + placeholder + _replace_math_segments(text[end:], placeholder)
+
+
+def _has_latex_syntax(text: str) -> bool:
+    cleaned = re.sub(r"(?:_\s*){2,}", "", text)
+    if re.search(r"\\[A-Za-z]+", cleaned):
+        return True
+    if re.search(r"\^(\{[^}]*\}|[A-Za-z0-9])", cleaned):
+        return True
+    if re.search(r"(?<=[A-Za-z0-9\}\)])_(\{[^}]*\}|[A-Za-z0-9])", cleaned):
+        return True
+    return False
+
+
+def _collect_latex_tokens(text: str) -> List[Dict[str, Any]]:
+    skip_ranges: List[tuple[int, int]] = []
+    for pattern in [r"\$\$.*?\$\$", r"\$.*?\$", r"\\\(.*?\\\)"]:
+        for match in re.finditer(pattern, text, flags=re.DOTALL):
+            skip_ranges.append((match.start(), match.end()))
+    for match in re.finditer(r"<[^>]+>", text):
+        skip_ranges.append((match.start(), match.end()))
+
+    skip_ranges.sort()
+
+    def is_skipped(start: int, end: int) -> bool:
+        for left, right in skip_ranges:
+            if start < right and end > left:
+                return True
+        return False
+
+    tokens: List[Dict[str, Any]] = []
+    patterns = [
+        r"\\[A-Za-z]+",
+        r"\^(\{[^}]*\}|[A-Za-z0-9])",
+        r"(?<=[A-Za-z0-9\}\)])_(\{[^}]*\}|[A-Za-z0-9])",
+    ]
+    for pattern in patterns:
+        for match in re.finditer(pattern, text):
+            if is_skipped(match.start(), match.end()):
+                continue
+            token = match.group(0)
+            if not token:
+                continue
+            start = match.start()
+            end = match.end()
+            before = text[max(0, start - 20) : start]
+            after = text[end : end + 20]
+            tokens.append(
+                {
+                    "start": start,
+                    "end": end,
+                    "token": token,
+                    "context_before": before,
+                    "context_after": after,
+                }
+            )
+    return tokens
+
+
+def detect_latex_syntax_missing(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
+    fields = [
+        "question",
+        "choice1",
+        "choice2",
+        "choice3",
+        "choice4",
+        "choice5",
+        "answer",
+        "solution",
+    ]
+    bad_fields: List[str] = []
+    bad_spans: List[Dict[str, Any]] = []
+    for field in fields:
+        content = fixed_data.get(field)
+        if not content or not isinstance(content, str):
+            continue
+        replaced = _replace_math_segments(content)
+        stripped = re.sub(r"<[^>]+>", " ", replaced)
+        tokens = _collect_latex_tokens(content) if _has_latex_syntax(stripped) else []
+        if tokens:
+            bad_fields.append(field)
+            for token in tokens:
+                token["field"] = field
+                bad_spans.append(token)
+
+    if not bad_fields:
+        return fixed_data
+
+    reasons = fixed_data.get("_auto_bad_reasons")
+    merged: List[str] = []
+    if isinstance(reasons, list):
+        merged.extend([r for r in reasons if isinstance(r, str)])
+    for field in bad_fields:
+        merged.append(f"latex_missing_delimiter:{field}")
+    fixed_data["_auto_bad_reasons"] = list(dict.fromkeys(merged))
+    fixed_data["_latex_bad_fields"] = list(dict.fromkeys(bad_fields))
+    if bad_spans:
+        fixed_data["_latex_bad_spans"] = bad_spans
+    return fixed_data
+
+
 def normalize_refer_view_header(fixed_data: Dict[str, Any]) -> Dict[str, Any]:
     question = fixed_data.get("question")
     if not isinstance(question, str):
@@ -818,6 +950,7 @@ def process_single_problem(problem: Dict[str, Any]) -> Dict[str, Any]:
         fixed_data = normalize_html_wrappers(fixed_data)
         fixed_data = wrap_short_answer_with_math_delimiters(fixed_data)
         fixed_data = normalize_empty_brackets(fixed_data)
+        fixed_data = detect_latex_syntax_missing(fixed_data)
 
         judge_result = {"pass": True, "reason": "judge_skipped"}
         judge_history.append(

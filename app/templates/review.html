@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sisyphus Reviewer</title>
+    <link rel="icon" href="https://class.day/favicon.ico" />
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Syncopate:wght@700&display=swap" rel="stylesheet">
     <script>
     window.MathJax = {
@@ -469,6 +470,13 @@
             gap: 8px;
             margin-bottom: 6px;
         }
+        .judge-meta-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
         .judge-status-badge {
             padding: 2px 8px;
             border-radius: 3px;
@@ -490,11 +498,36 @@
             color: var(--text-secondary);
             font-size: 0.85em;
         }
+        .judge-meta-divider {
+            color: var(--border-color);
+        }
+        .bad-reason-list {
+            margin-top: 6px;
+            color: var(--bad-color);
+            font-size: 0.85em;
+        }
         .judge-reason-text {
             color: var(--text-secondary);
             font-size: 0.95rem;
             line-height: 1.8;
             white-space: pre-wrap;
+        }
+        .latex-span-list {
+            margin-top: 6px;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+            line-height: 1.6;
+        }
+        .latex-span-item {
+            margin-top: 4px;
+        }
+        .latex-span-item code {
+            font-family: 'IBM Plex Mono', monospace;
+        }
+        .latex-span-item mark {
+            background: rgba(255, 193, 7, 0.2);
+            color: var(--text-primary);
+            padding: 0 2px;
         }
 
         .bad-list-textarea {
@@ -763,16 +796,41 @@
 
             // Judge reason at top (only for fixed panel with _judge data)
             const judge = data._judge;
+            const autoBadReasons = data._auto_bad_reasons;
+            const latexSpans = Array.isArray(data._latex_bad_spans)
+                ? data._latex_bad_spans
+                : [];
             if (judge) {
                 const statusClass = judge.pass ? 'judge-pass' : 'judge-fail';
                 const statusText = judge.pass ? 'PASS' : 'FAIL';
+                const metaLeft = `attempts: ${judge.attempts}`;
+                const metaRight = judge.model || '';
+                const reasonList = Array.isArray(autoBadReasons) && autoBadReasons.length > 0
+                    ? autoBadReasons.join(', ')
+                    : '';
+                const latexList = latexSpans.map((span) => {
+                    const field = escapeHtml(span.field || '');
+                    const before = escapeHtml(span.context_before || '');
+                    const token = escapeHtml(span.token || '');
+                    const after = escapeHtml(span.context_after || '');
+                    const range = (Number.isInteger(span.start) && Number.isInteger(span.end))
+                        ? ` (${span.start}-${span.end})`
+                        : '';
+                    return `<div class="latex-span-item">${field}${range}: <code>${before}<mark>${token}</mark>${after}</code></div>`;
+                }).join('');
                 html += `
                     <div class="judge-reason ${statusClass}">
                         <div class="judge-reason-header">
                             <span class="judge-status-badge ${statusClass}">${statusText}</span>
-                            <span class="judge-meta">attempts: ${judge.attempts} · ${judge.model || ''}</span>
+                            <div class="judge-meta judge-meta-row">
+                                <span>${metaLeft}</span>
+                                <span class="judge-meta-divider">·</span>
+                                <span>${metaRight}</span>
+                            </div>
                         </div>
                         <div class="judge-reason-text">${judge.reason || ''}</div>
+                        ${reasonList ? `<div class="bad-reason-list">BAD 이유: ${reasonList}</div>` : ''}
+                        ${latexList ? `<div class="latex-span-list">LaTeX 위치:${latexList}</div>` : ''}
                     </div>
                 `;
             }
@@ -1346,6 +1404,13 @@
                 document.execCommand('copy');
                 showSuccess();
             }
+        }
+
+        function escapeHtml(text) {
+            return text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
         }
 
         // Keyboard Navigation

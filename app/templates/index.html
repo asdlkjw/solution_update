@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sisyphus // Problem Fixer</title>
+    <link rel="icon" href="https://class.day/favicon.ico" />
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Syncopate:wght@700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -60,6 +61,34 @@
             color: var(--text-secondary);
             font-size: 0.85rem;
             margin-bottom: 30px;
+        }
+
+        .brand {
+            display: grid;
+            grid-template-columns: 56px 1fr 56px;
+            align-items: start;
+            column-gap: 16px;
+            margin-bottom: 8px;
+        }
+
+        .brand-logo {
+            width: 56px;
+            height: 56px;
+            border-radius: 8px;
+            object-fit: cover;
+        }
+
+        .brand-text {
+            text-align: center;
+            justify-self: center;
+        }
+
+        @media (max-width: 640px) {
+            .brand {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+            }
         }
 
         label {
@@ -199,8 +228,13 @@
 </head>
 <body>
     <div class="container">
-        <h1>Sisyphus</h1>
-        <div class="subtitle">Math Problem Fixer</div>
+        <div class="brand">
+            <img class="brand-logo" src="https://axw77jxkr5mm.objectstorage.ap-chuncheon-1.oci.customer-oci.com/n/axw77jxkr5mm/b/eduspace-prod-activities/o/spaceProfile/e3a44a76-deaf-4864-80a0-9ee3bb2e9272.jpg" alt="Sisyphus logo">
+            <div class="brand-text">
+                <h1>Sisyphus</h1>
+                <div class="subtitle">Math Problem Fixer</div>
+            </div>
+        </div>
 
         <form id="job-form">
             <label>Pipeline Version</label>
