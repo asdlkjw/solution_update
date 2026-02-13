@@ -1178,6 +1178,20 @@ def restore_missing_images(
         "solution",
     ]
 
+    fixed_srcs_global: set[str] = set()
+    for field in fields_to_check:
+        fixed_content = fixed_data.get(field)
+        if not fixed_content or not isinstance(fixed_content, str):
+            continue
+        fixed_images = re.findall(img_pattern, str(fixed_content), re.IGNORECASE)
+        for fixed_img in fixed_images:
+            fixed_match = re.search(
+                r'src\s*=\s*["\']([^"\']+)["\']', fixed_img, re.IGNORECASE
+            )
+            if not fixed_match:
+                continue
+            fixed_srcs_global.add(_fix_image_src_format(fixed_match.group(1)))
+
     for field in fields_to_check:
         original_content = original_data.get(field)
         fixed_content = fixed_data.get(field)
@@ -1195,7 +1209,7 @@ def restore_missing_images(
             fixed_content = ""
 
         fixed_images = re.findall(img_pattern, str(fixed_content), re.IGNORECASE)
-        fixed_srcs = set()
+        fixed_srcs: set[str] = set()
         for fixed_img in fixed_images:
             fixed_match = re.search(
                 r'src\s*=\s*["\']([^"\']+)["\']', fixed_img, re.IGNORECASE
@@ -1211,15 +1225,18 @@ def restore_missing_images(
             if not src_match:
                 continue
             src_value = _fix_image_src_format(src_match.group(1))
-            img_exists = src_value in fixed_srcs
+            img_exists_in_field = src_value in fixed_srcs
+            img_exists_anywhere = src_value in fixed_srcs_global
 
-            if not img_exists:
+            if not img_exists_in_field and not img_exists_anywhere:
                 # 이미지를 콘텐츠 앞에 추가
                 if fixed_content:
                     fixed_data[field] = img + " " + fixed_content
                 else:
                     fixed_data[field] = img
                 fixed_content = fixed_data[field]
+                fixed_srcs.add(src_value)
+                fixed_srcs_global.add(src_value)
 
     return fixed_data
 

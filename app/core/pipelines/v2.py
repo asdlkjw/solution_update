@@ -470,6 +470,13 @@ def _v2_restore_missing_images(
         "answer",
         "solution",
     ]
+    global_fields = same_fields + ["refer"]
+
+    fixed_srcs_global: set[str] = set()
+    for field in global_fields:
+        fixed_content = fixed_data.get(field)
+        if isinstance(fixed_content, str):
+            fixed_srcs_global.update(_extract_srcs(fixed_content))
 
     for field in same_fields:
         original_content = original_data.get(field)
@@ -485,24 +492,23 @@ def _v2_restore_missing_images(
         if not fixed_content:
             fixed_content = ""
 
-        fixed_images = re.findall(img_pattern, str(fixed_content), re.IGNORECASE)
+        fixed_srcs = set(_extract_srcs(str(fixed_content)))
 
         for img in original_images:
             src_match = re.search(r'src\s*=\s*["\']([^"\']+)["\']', img, re.IGNORECASE)
             if not src_match:
                 continue
             src_value = _fix_image_src_format(src_match.group(1))
-            fixed_srcs = {
-                _fix_image_src_format(src)
-                for src in _extract_srcs(" ".join(fixed_images))
-            }
-            img_exists = src_value in fixed_srcs
-            if not img_exists:
+            img_exists_in_field = src_value in fixed_srcs
+            img_exists_anywhere = src_value in fixed_srcs_global
+            if not img_exists_in_field and not img_exists_anywhere:
                 if fixed_content:
                     fixed_data[field] = img + " " + fixed_content
                 else:
                     fixed_data[field] = img
                 fixed_content = fixed_data[field]
+                fixed_srcs.add(src_value)
+                fixed_srcs_global.add(src_value)
 
     # -- Phase 2: cross-field (original.refer -> fixed.question) --
     refer_content = original_data.get("refer")
@@ -512,7 +518,7 @@ def _v2_restore_missing_images(
         if refer_images:
             # Collect ALL src values currently in fixed_data
             all_fixed_srcs: set[str] = set()
-            for field in same_fields:
+            for field in global_fields:
                 fc = fixed_data.get(field)
                 if isinstance(fc, str):
                     all_fixed_srcs.update(_extract_srcs(fc))
